@@ -29,13 +29,25 @@ export const onRequest = async (context: EventContext<Env, string, unknown>) => 
   };
 
   // Debug endpoint
-  if (new URL(context.request.url).pathname === "/api/debug") {
+  const pathname = new URL(context.request.url).pathname;
+  if (pathname === "/api/debug") {
+    let dbTest: unknown = null;
+    try {
+      const { createDb } = await import("../../packages/web/src/api/database/index");
+      const db = createDb(env);
+      // Test raw query
+      const result = await db.execute("SELECT email FROM users LIMIT 1");
+      dbTest = { ok: true, rows: result.rows };
+    } catch (err) {
+      dbTest = { err: err instanceof Error ? err.message : String(err) };
+    }
     return new Response(JSON.stringify({
       initError: _initError,
       envKeys: Object.keys(context.env),
       DATABASE_URL: env.DATABASE_URL ? env.DATABASE_URL.substring(0, 30) + "..." : "MISSING",
       WEBSITE_URL: env.WEBSITE_URL || "MISSING",
       BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET ? "SET" : "MISSING",
+      dbTest,
     }), { headers: { "Content-Type": "application/json" } });
   }
 
