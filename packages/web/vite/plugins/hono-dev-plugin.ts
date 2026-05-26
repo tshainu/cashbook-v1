@@ -28,7 +28,13 @@ export default function honoDevPlugin(): Plugin {
 
 async function loadApp(server: ViteDevServer) {
   const mod = await server.ssrLoadModule("/src/api/index.ts");
-  return mod.default;
+  const { createApp } = mod;
+  return createApp({
+    DATABASE_URL: process.env.DATABASE_URL!,
+    DATABASE_AUTH_TOKEN: process.env.DATABASE_AUTH_TOKEN,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
+    WEBSITE_URL: process.env.WEBSITE_URL!,
+  });
 }
 
 function toWebRequest(req: import("http").IncomingMessage): Request {
@@ -37,7 +43,6 @@ function toWebRequest(req: import("http").IncomingMessage): Request {
   for (const [key, val] of Object.entries(req.headers)) {
     if (val) headers.set(key, Array.isArray(val) ? val.join(", ") : val);
   }
-
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
   return new Request(url, {
     method: req.method,

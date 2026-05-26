@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { createAuth, auth as devAuth } from "./auth";
-import { createDb, db as devDb, type Env } from "./database";
+import { createAuth } from "./auth";
+import { createDb, type Env } from "./database";
 import { authMiddleware } from "./middleware/auth";
 import { shops } from "./routes/shops";
 import { staff } from "./routes/staff";
@@ -36,13 +36,4 @@ export function createApp(env: Env) {
   return app;
 }
 
-// Dev fallback — uses process.env
-const app = createApp({
-  DATABASE_URL: process.env.DATABASE_URL!,
-  DATABASE_AUTH_TOKEN: process.env.DATABASE_AUTH_TOKEN,
-  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-  WEBSITE_URL: process.env.WEBSITE_URL!,
-});
-
-export type AppType = typeof app;
-export default app;
+export type AppType = ReturnType<typeof createApp>;

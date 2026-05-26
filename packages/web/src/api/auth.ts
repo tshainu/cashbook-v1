@@ -24,11 +24,3 @@ export function createAuth(env: Env) {
 }
 
 export type AuthInstance = ReturnType<typeof createAuth>;
-
-// Fallback for local dev
-export const auth = createAuth({
-  DATABASE_URL: process.env.DATABASE_URL!,
-  DATABASE_AUTH_TOKEN: process.env.DATABASE_AUTH_TOKEN,
-  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-  WEBSITE_URL: process.env.WEBSITE_URL!,
-});

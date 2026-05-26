@@ -16,11 +16,3 @@ export function createDb(env: Env) {
   });
   return drizzle(client, { schema });
 }
-
-// Fallback for local dev using process.env
-export const db = createDb({
-  DATABASE_URL: process.env.DATABASE_URL!,
-  DATABASE_AUTH_TOKEN: process.env.DATABASE_AUTH_TOKEN,
-  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-  WEBSITE_URL: process.env.WEBSITE_URL!,
-});
