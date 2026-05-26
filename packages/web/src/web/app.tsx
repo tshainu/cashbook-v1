@@ -8,13 +8,6 @@ import ItemsPage from "./pages/items";
 import Layout from "./components/layout";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending } = authClient.useSession();
-  if (isPending) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-8 h-8 border-4 border-[#419873] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-  if (!session) return <Redirect to="/login" />;
   return <>{children}</>;
 }
 
