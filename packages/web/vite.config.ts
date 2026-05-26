@@ -21,10 +21,6 @@ export default defineConfig(({ mode }) => {
 		resolve: {
 			alias: {
 				"@": path.resolve(__dirname, "./src/web"),
-				// Use the web (fetch-based) libsql client on Cloudflare builds
-				...(isCloudflare ? {
-					"@libsql/client": "@libsql/client/web",
-				} : {}),
 			},
 		},
 		server: {
