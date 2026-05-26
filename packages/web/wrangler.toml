@@ -1,0 +1,6 @@
+[build]
+command = "bun install && bun run build"
+cwd = "packages/web"
+
+[site]
+bucket = "packages/web/dist"
