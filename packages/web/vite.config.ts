@@ -14,7 +14,6 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		plugins: [
-			// Only load hono dev plugin in dev mode (not on Cloudflare build)
 			...(!isCloudflare && mode === "development" ? [honoDevPlugin()] : []),
 			react(),
 			tailwind(),
@@ -22,6 +21,10 @@ export default defineConfig(({ mode }) => {
 		resolve: {
 			alias: {
 				"@": path.resolve(__dirname, "./src/web"),
+				// Use the web (fetch-based) libsql client on Cloudflare builds
+				...(isCloudflare ? {
+					"@libsql/client": "@libsql/client/web",
+				} : {}),
 			},
 		},
 		server: {
