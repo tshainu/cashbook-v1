@@ -1,23 +1,11 @@
+import { createApp } from "../../packages/web/src/api/index";
+import { createClient } from "@libsql/client/web";
+
 interface Env {
   DATABASE_URL: string;
   DATABASE_AUTH_TOKEN: string;
   BETTER_AUTH_SECRET: string;
   WEBSITE_URL: string;
-}
-
-let _app: ReturnType<typeof import("../../packages/web/src/api/index").createApp> | null = null;
-let _initError: string | null = null;
-
-async function getApp(env: Env) {
-  if (_app) return _app;
-  try {
-    const { createApp } = await import("../../packages/web/src/api/index");
-    _app = createApp(env);
-    return _app;
-  } catch (err) {
-    _initError = err instanceof Error ? `${err.name}: ${err.message}\n${err.stack}` : String(err);
-    throw err;
-  }
 }
 
 export const onRequest = async (context: EventContext<Env, string, unknown>) => {
@@ -28,23 +16,23 @@ export const onRequest = async (context: EventContext<Env, string, unknown>) => 
     WEBSITE_URL: context.env.WEBSITE_URL,
   };
 
-  // Debug endpoint
   const pathname = new URL(context.request.url).pathname;
+
+  // Debug endpoint
   if (pathname === "/api/debug") {
     let dbTest: unknown = null;
     try {
-      const { createDb } = await import("../../packages/web/src/api/database/index");
-      const db = createDb(env);
-      // Test raw query
-      const result = await db.execute("SELECT email FROM users LIMIT 1");
+      const client = createClient({
+        url: env.DATABASE_URL,
+        authToken: env.DATABASE_AUTH_TOKEN,
+      });
+      const result = await client.execute("SELECT email FROM users LIMIT 2");
       dbTest = { ok: true, rows: result.rows };
     } catch (err) {
-      dbTest = { err: err instanceof Error ? err.message : String(err) };
+      dbTest = { err: err instanceof Error ? `${err.name}: ${err.message}\n${err.stack}` : String(err) };
     }
     return new Response(JSON.stringify({
-      initError: _initError,
-      envKeys: Object.keys(context.env),
-      DATABASE_URL: env.DATABASE_URL ? env.DATABASE_URL.substring(0, 30) + "..." : "MISSING",
+      DATABASE_URL: env.DATABASE_URL ? env.DATABASE_URL.substring(0, 35) + "..." : "MISSING",
       WEBSITE_URL: env.WEBSITE_URL || "MISSING",
       BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET ? "SET" : "MISSING",
       dbTest,
@@ -52,11 +40,11 @@ export const onRequest = async (context: EventContext<Env, string, unknown>) => 
   }
 
   try {
-    const app = await getApp(env);
+    const app = createApp(env);
     return await app.fetch(context.request, context.env);
   } catch (err) {
     const msg = err instanceof Error ? `${err.name}: ${err.message}\n${err.stack}` : String(err);
-    return new Response(JSON.stringify({ error: msg, initError: _initError }), {
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
