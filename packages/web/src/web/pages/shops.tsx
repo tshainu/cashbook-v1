@@ -17,6 +17,27 @@ const emptyForm = () => ({
   password: "",
 });
 
+function FormField({
+  label, value, onChange, placeholder, readOnly = false, type = "text",
+}: {
+  label: string; value: string; onChange?: (v: string) => void;
+  placeholder?: string; readOnly?: boolean; type?: string;
+}) {
+  return (
+    <div>
+      <label className="text-sm text-gray-600 mb-1 block">{label}</label>
+      <input
+        type={type}
+        value={value}
+        readOnly={readOnly}
+        onChange={e => onChange?.(e.target.value)}
+        placeholder={placeholder}
+        className={`w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#419873]/30 ${readOnly ? "bg-gray-50 text-gray-500 cursor-default" : ""}`}
+      />
+    </div>
+  );
+}
+
 export default function ShopsPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState(emptyForm);
@@ -53,25 +74,6 @@ export default function ShopsPage() {
   });
 
   const shops = data?.shops ?? [];
-
-  const FormField = ({
-    label, value, onChange, placeholder, readOnly = false, type = "text",
-  }: {
-    label: string; value: string; onChange?: (v: string) => void;
-    placeholder?: string; readOnly?: boolean; type?: string;
-  }) => (
-    <div>
-      <label className="text-sm text-gray-600 mb-1 block">{label}</label>
-      <input
-        type={type}
-        value={value}
-        readOnly={readOnly}
-        onChange={e => onChange?.(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#419873]/30 ${readOnly ? "bg-gray-50 text-gray-500 cursor-default" : ""}`}
-      />
-    </div>
-  );
 
   return (
     <div className="p-8">
