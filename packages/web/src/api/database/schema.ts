@@ -5,6 +5,9 @@ export const shops = sqliteTable("shops", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   shopCode: text("shop_code").notNull().unique(), // used as "Shop ID" in login
+  address: text("address"),
+  contactNumber: text("contact_number"),
+  ownerName: text("owner_name"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
