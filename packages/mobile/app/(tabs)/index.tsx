@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";import { TrendUp, TrendDown } from "phosphor-react-native";import {
+import { useState, useMemo } from "react";import { TrendUp, TrendDown, CloudSlash, CloudCheck, ArrowsClockwise } from "phosphor-react-native";import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Dimensions, ActivityIndicator, Image,
 } from "react-native";
@@ -10,6 +10,8 @@ import { api } from "../../lib/api";
 import { getStoredUser } from "../../lib/auth";
 import NewSaleModal from "../../components/NewSaleModal";
 import ExpenseModal from "../../components/ExpenseModal";
+import { useSyncStatus } from "../../lib/useSyncStatus";
+import { runSync } from "../../lib/syncService";
 
 const TEAL = "#419873";
 const RED = "#E03A2A";
@@ -63,6 +65,7 @@ export default function Dashboard() {
   const [showSale, setShowSale] = useState(false);
   const [showExpense, setShowExpense] = useState(false);
   const insets = useSafeAreaInsets();
+  const { pendingCount, isOnline } = useSyncStatus();
 
   const { from, to } = useMemo(() => getPeriodDates(period), [period]);
 
@@ -119,11 +122,24 @@ export default function Dashboard() {
             <Text style={s.greeting}>Good {getGreeting()}</Text>
           </View>
         </View>
-        {/* Right: date pill + user avatar */}
+        {/* Right: sync indicator + date pill + user avatar */}
         <View style={s.topRight}>
-          <View style={s.datePill}>
-            <Text style={s.datePillText}>{getTodayLabel()}</Text>
-          </View>
+          {/* Sync status badge */}
+          <TouchableOpacity
+            style={[s.syncBadge, !isOnline && s.syncBadgeOffline, pendingCount > 0 && isOnline && s.syncBadgePending]}
+            onPress={() => runSync()}
+            activeOpacity={0.7}
+          >
+            {!isOnline
+              ? <CloudSlash size={13} color="#fff" weight="bold" />
+              : pendingCount > 0
+                ? <ArrowsClockwise size={13} color="#fff" weight="bold" />
+                : <CloudCheck size={13} color="#fff" weight="bold" />
+            }
+            <Text style={s.syncBadgeText}>
+              {!isOnline ? "Offline" : pendingCount > 0 ? `${pendingCount} pending` : "Synced"}
+            </Text>
+          </TouchableOpacity>
           <View style={s.avatarCircle}>
             <Text style={s.avatarText}>
               {(user?.name ?? "U").charAt(0).toUpperCase()}
@@ -329,6 +345,14 @@ const s = StyleSheet.create({
     borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
   },
   datePillText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  syncBadge: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5,
+  },
+  syncBadgeOffline: { backgroundColor: "rgba(200,60,40,0.5)" },
+  syncBadgePending: { backgroundColor: "rgba(230,126,0,0.5)" },
+  syncBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   avatarCircle: {
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: "rgba(255,255,255,0.28)",

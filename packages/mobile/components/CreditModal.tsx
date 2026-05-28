@@ -1,11 +1,12 @@
 import { useState } from "react";
 import {
   View, Text, Modal, TextInput, StyleSheet, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, ScrollView,
 } from "react-native";
 import { X, UserCircle, Phone, CalendarBlank, CheckCircle, CaretUp, CaretDown } from "phosphor-react-native";
 import { api } from "../lib/api";
 import { authFetch } from "../lib/authFetch";
+import { offlineAuthFetch } from "../lib/offlineAuthFetch";
 const BLUE = "#3a6eb5";
 
 interface Props {
@@ -94,7 +95,7 @@ export default function CreditModal({ visible, onClose, onSuccess, shopId, itemI
     const d = new Date(); d.setDate(d.getDate() + 7);
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   });
-  const [loading, setLoading] = useState(false);
+
 
   function reset() {
     setCustomerName(""); setPhone(""); setHasDate(false);
@@ -102,35 +103,30 @@ export default function CreditModal({ visible, onClose, onSuccess, shopId, itemI
     setPromiseDate(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!customerName.trim()) { Alert.alert("Error", "Customer name is required."); return; }
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) { Alert.alert("Error", "Invalid amount."); return; }
-    setLoading(true);
-    try {
-      await authFetch("/api/transactions", {
-        method: "POST",
-        body: JSON.stringify({
-          shopId: Number(shopId),
-          itemId: itemId ? Number(itemId) : null,
-          itemName: "Credit Sale",
-          amount: parsed,
-          type: "credit",
-          customerName: customerName.trim(),
-          customerPhone: phone.trim() || null,
-          promiseDate: hasDate ? promiseDate : null,
-          note: null,
-        }),
-      });
-      reset();
-      setLoading(false);
-      onSuccess();
-    } catch (e: any) {
-      setLoading(false);
-      if (e?.message !== "Session expired") {
-        Alert.alert("Error", e?.message || "Failed to save credit transaction.");
-      }
-    }
+    // Fire-and-forget: close instantly, queue or save in background
+    const payload = {
+      shopId: Number(shopId),
+      itemId: itemId ? Number(itemId) : null,
+      itemName: "Credit Sale",
+      amount: parsed,
+      type: "credit",
+      customerName: customerName.trim(),
+      customerPhone: phone.trim() || null,
+      promiseDate: hasDate ? promiseDate : null,
+      note: null,
+    };
+    reset();
+    onSuccess();
+    offlineAuthFetch("/api/transactions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).catch(() => {
+      // silently queued
+    });
   }
 
   return (
@@ -207,14 +203,10 @@ export default function CreditModal({ visible, onClose, onSuccess, shopId, itemI
           </ScrollView>
 
           <TouchableOpacity
-            style={[s.submitBtn, loading && { opacity: 0.6 }]}
+            style={s.submitBtn}
             onPress={handleSubmit}
-            disabled={loading}
           >
-            {loading
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <><CheckCircle size={18} color="#fff" weight="fill" /><Text style={s.submitText}> Submit Credit</Text></>
-            }
+            <><CheckCircle size={18} color="#fff" weight="fill" /><Text style={s.submitText}> Submit Credit</Text></>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

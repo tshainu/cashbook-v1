@@ -8,6 +8,7 @@ import { X, CaretDown, CheckCircle } from "phosphor-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { authFetch } from "../lib/authFetch";
+import { offlineAuthFetch } from "../lib/offlineAuthFetch";
 import NumPad from "./NumPad";
 import CreditModal from "./CreditModal";
 
@@ -84,9 +85,9 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) { Alert.alert("Error", "Enter a valid amount."); return; }
     if (!selectedItem) { Alert.alert("Error", "Please select an item."); return; }
-    // Fire-and-forget: close modal instantly, save in background
+    // Fire-and-forget: close modal instantly, queue or save in background
     onSuccess();
-    authFetch("/api/transactions", {
+    offlineAuthFetch("/api/transactions", {
       method: "POST",
       body: JSON.stringify({
         shopId: Number(shopId), itemId: Number(selectedItem.id),
@@ -95,7 +96,7 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
       }),
     }).catch((e: any) => {
       if (e?.message !== "Session expired") {
-        Alert.alert("Save failed", e?.message || "Sale could not be saved. Please try again.");
+        // silently queued — sync will retry
       }
     });
   }

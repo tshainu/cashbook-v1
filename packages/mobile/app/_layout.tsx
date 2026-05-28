@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { getToken, getStoredUser } from "../lib/auth";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { startSync, stopSync } from "../lib/syncService";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -32,12 +33,21 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SyncStarter() {
+  useEffect(() => {
+    startSync();
+    return () => stopSync();
+  }, []);
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <StatusBar style="light" />
+          <SyncStarter />
           <AuthGuard>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="sign-in" />
