@@ -24,7 +24,10 @@ export function reports(db: LibSQLDatabase<typeof schema>) {
         creditSettled: schema.transactions.creditSettled,
         promiseDate: schema.transactions.promiseDate,
         createdAt: schema.transactions.createdAt,
-      }).from(schema.transactions).where(
+        userName: schema.users.name,
+      }).from(schema.transactions)
+        .leftJoin(schema.users, eq(schema.transactions.userId, schema.users.id))
+        .where(
         and(
           eq(schema.transactions.shopId, shopId),
           gte(schema.transactions.createdAt, fromDate),

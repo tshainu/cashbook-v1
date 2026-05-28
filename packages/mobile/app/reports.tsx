@@ -1,21 +1,23 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, TextInput, Animated, PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, TrendUp, TrendDown, CreditCard,
-  ChartBar, ListBullets, CaretDown, CaretUp,
+  ChartBar, ListBullets, CaretDown, CaretUp, MagnifyingGlass,
 } from "phosphor-react-native";
 import { api } from "../lib/api";
+import { authFetch } from "../lib/authFetch";
 import { getStoredUser } from "../lib/auth";
 
 const TEAL = "#419873";
 const RED = "#E03A2A";
 const BLUE = "#3a6eb5";
+const GREEN_COLLECT = "#27ae60";
 
 type Period = "today" | "yesterday" | "week" | "month" | "lastMonth" | "year";
 const PERIODS: { key: Period; label: string }[] = [
@@ -63,7 +65,6 @@ function fmtDate(d: any) {
   const dt = new Date(d);
   return `${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`;
 }
-
 function fmtTime(d: any) {
   if (!d) return "";
   const dt = new Date(d);
@@ -71,20 +72,146 @@ function fmtTime(d: any) {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
 
+// Swipeable credit row — swipe left to reveal "Collected" button
+const SWIPE_THRESHOLD = 60;
+const COLLECT_BTN_W = 90;
+
+function CreditRow({
+  tx,
+  isLast,
+  onSettle,
+}: {
+  tx: any;
+  isLast: boolean;
+  onSettle: (id: number) => void;
+}) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const [settling, setSettling] = useState(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        !tx.creditSettled && Math.abs(g.dx) > 8 && Math.abs(g.dy) < 20,
+      onPanResponderMove: (_, g) => {
+        const x = Math.min(0, Math.max(-COLLECT_BTN_W, g.dx));
+        translateX.setValue(x);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < -SWIPE_THRESHOLD) {
+          Animated.spring(translateX, { toValue: -COLLECT_BTN_W, useNativeDriver: true }).start();
+        } else {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    })
+  ).current;
+
+  function closeSwipe() {
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+  }
+
+  async function handleCollect() {
+    setSettling(true);
+    closeSwipe();
+    try {
+      await authFetch(`/api/transactions/${tx.id}/settle`, { method: "PATCH" });
+      onSettle(tx.id);
+    } catch (e: any) {
+      if (e?.message !== "Session expired") {
+        // silent — row will revert on next fetch
+      }
+    } finally {
+      setSettling(false);
+    }
+  }
+
+  return (
+    <View style={[cr.wrapper, !isLast && cr.border]}>
+      {/* Green collect button behind */}
+      {!tx.creditSettled && (
+        <TouchableOpacity
+          style={cr.collectBtn}
+          onPress={handleCollect}
+          activeOpacity={0.8}
+        >
+          {settling
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={cr.collectBtnText}>Collected</Text>
+          }
+        </TouchableOpacity>
+      )}
+      {/* Row content */}
+      <Animated.View
+        style={[cr.row, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        <View style={[cr.dot, { backgroundColor: tx.creditSettled ? TEAL : "#faad14" }]} />
+        <View style={cr.info}>
+          <Text style={cr.name}>{tx.itemName}</Text>
+          {tx.customerName ? (
+            <Text style={cr.meta}>{tx.customerName}{tx.customerPhone ? ` · ${tx.customerPhone}` : ""}</Text>
+          ) : null}
+          {tx.userName ? (
+            <Text style={cr.addedBy}>Added by {tx.userName}</Text>
+          ) : null}
+          <View style={[cr.badge, { backgroundColor: tx.creditSettled ? "#E8F5EE" : "#FFF7E6" }]}>
+            <Text style={[cr.badgeText, { color: tx.creditSettled ? TEAL : "#e67e00" }]}>
+              {tx.creditSettled ? "Collected" : "Pending"}
+            </Text>
+          </View>
+          <Text style={cr.date}>{fmtDate(tx.createdAt)} · {fmtTime(tx.createdAt)}</Text>
+        </View>
+        <Text style={[cr.amount, { color: BLUE }]}>Rs. {tx.amount.toLocaleString()}</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+const cr = StyleSheet.create({
+  wrapper: { backgroundColor: "#fff", overflow: "hidden", position: "relative" },
+  border: { borderBottomWidth: 1, borderBottomColor: "#F0F4F2" },
+  collectBtn: {
+    position: "absolute", right: 0, top: 0, bottom: 0,
+    width: COLLECT_BTN_W, backgroundColor: GREEN_COLLECT,
+    alignItems: "center", justifyContent: "center",
+  },
+  collectBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  row: {
+    flexDirection: "row", alignItems: "flex-start",
+    paddingHorizontal: 14, paddingVertical: 12, gap: 10,
+    backgroundColor: "#fff",
+  },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
+  info: { flex: 1 },
+  name: { fontSize: 14, fontWeight: "600", color: "#1a2e22" },
+  meta: { fontSize: 12, color: "#A0ADB8", marginTop: 1 },
+  addedBy: { fontSize: 11, color: "#B0BEC5", marginTop: 1, fontStyle: "italic" },
+  badge: {
+    alignSelf: "flex-start", borderRadius: 5,
+    paddingHorizontal: 6, paddingVertical: 2, marginTop: 3,
+  },
+  badgeText: { fontSize: 10, fontWeight: "700" },
+  date: { fontSize: 11, color: "#C0CCC8", marginTop: 3 },
+  amount: { fontSize: 14, fontWeight: "700", marginTop: 2 },
+});
+
 export default function Reports() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = getStoredUser();
   const shopId = user?.shopId ?? "";
 
   const [period, setPeriod] = useState<Period>("month");
   const [tab, setTab] = useState<TabKey>("all");
   const [expandedCategories, setExpandedCategories] = useState(false);
+  const [creditSearch, setCreditSearch] = useState("");
+  // local settled IDs for optimistic UI
+  const [localSettled, setLocalSettled] = useState<Set<number>>(new Set());
 
   const { from, to } = useMemo(() => getPeriodDates(period), [period]);
-
   const typeParam = tab === "all" ? undefined : tab === "sales" ? "sale" : tab === "expenses" ? "expense" : "credit";
 
-  const { data, isLoading } = useQuery({
+  const { data: rawData, isLoading } = useQuery({
     queryKey: ["reports", shopId, from, to, tab],
     queryFn: async () => {
       const res = await (api as any).reports.summary.$get({
@@ -95,17 +222,49 @@ export default function Reports() {
     },
     enabled: !!shopId,
   });
+  const data = rawData as any;
+  // Clear optimistic settled IDs when fresh data arrives
+  useEffect(() => {
+    if (data) setLocalSettled(new Set());
+  }, [data]);
 
-  const transactions: any[] = data?.transactions ?? [];
+  const rawTransactions: any[] = data?.transactions ?? [];
+  // Apply optimistic settled status
+  const transactions = rawTransactions.map(tx =>
+    localSettled.has(tx.id) ? { ...tx, creditSettled: true } : tx
+  );
+
   const categories: any[] = data?.categories ?? [];
   const visibleCategories = expandedCategories ? categories : categories.slice(0, 4);
+
+  function handleSettle(id: number) {
+    setLocalSettled(prev => new Set([...prev, id]));
+    // Invalidate to re-fetch totals in background
+    queryClient.invalidateQueries({ queryKey: ["reports", shopId, from, to, tab] });
+  }
+
+  // Credit tab filtered list
+  const creditTxs = transactions.filter(tx => tx.type === "credit");
+  const filteredCreditTxs = useMemo(() => {
+    const q = creditSearch.toLowerCase().trim();
+    if (!q) return creditTxs;
+    return creditTxs.filter(tx =>
+      (tx.customerName ?? "").toLowerCase().includes(q) ||
+      (tx.customerPhone ?? "").toLowerCase().includes(q)
+    );
+  }, [creditTxs, creditSearch]);
+
+  // Collected total (including optimistic)
+  const collectedTotal = creditTxs.reduce((s, tx) =>
+    tx.creditSettled ? s + tx.amount : s, 0);
+  const pendingTotal = creditTxs.reduce((s, tx) =>
+    !tx.creditSettled ? s + tx.amount : s, 0);
 
   function typeColor(t: string) {
     if (t === "sale") return TEAL;
     if (t === "expense") return RED;
     return BLUE;
   }
-
   function typeLabel(t: string) {
     if (t === "sale") return "Sale";
     if (t === "expense") return "Expense";
@@ -178,7 +337,6 @@ export default function Reports() {
                   </View>
                 </View>
 
-                {/* Credit summary */}
                 <View style={s.creditBox}>
                   <View style={s.creditRow}>
                     <CreditCard size={16} color={BLUE} weight="fill" />
@@ -188,7 +346,7 @@ export default function Reports() {
                   <View style={s.creditDetails}>
                     <View style={s.creditDetailItem}>
                       <View style={[s.dot, { backgroundColor: "#52c47a" }]} />
-                      <Text style={s.creditDetailLabel}>Settled</Text>
+                      <Text style={s.creditDetailLabel}>Collected</Text>
                       <Text style={s.creditDetailVal}>Rs. {(data?.totalCreditSettled ?? 0).toLocaleString()}</Text>
                     </View>
                     <View style={s.creditDetailItem}>
@@ -199,7 +357,6 @@ export default function Reports() {
                   </View>
                 </View>
 
-                {/* Net profit */}
                 <View style={[s.profitBox, (data?.netProfit ?? 0) >= 0 ? s.profitPos : s.profitNeg]}>
                   <Text style={s.profitLabel}>Net Profit</Text>
                   <Text style={[s.profitVal, { color: (data?.netProfit ?? 0) >= 0 ? TEAL : RED }]}>
@@ -209,31 +366,85 @@ export default function Reports() {
               </>
             )}
 
-            {/* Credit tab detail */}
+            {/* Credit tab detail + search */}
             {tab === "credit" && (
-              <View style={s.creditBox}>
-                <View style={s.creditRow}>
-                  <CreditCard size={16} color={BLUE} weight="fill" />
-                  <Text style={s.creditTitle}>Credit Sales Total</Text>
-                  <Text style={[s.creditTotal, { color: BLUE }]}>Rs. {(data?.totalCredit ?? 0).toLocaleString()}</Text>
-                </View>
-                <View style={s.creditDetails}>
-                  <View style={s.creditDetailItem}>
-                    <View style={[s.dot, { backgroundColor: "#52c47a" }]} />
-                    <Text style={s.creditDetailLabel}>Settled</Text>
-                    <Text style={s.creditDetailVal}>Rs. {(data?.totalCreditSettled ?? 0).toLocaleString()}</Text>
+              <>
+                {/* Summary strip */}
+                <View style={s.creditBox}>
+                  <View style={s.creditRow}>
+                    <CreditCard size={16} color={BLUE} weight="fill" />
+                    <Text style={s.creditTitle}>Credit Total</Text>
+                    <Text style={[s.creditTotal, { color: BLUE }]}>Rs. {creditTxs.reduce((s, t) => s + t.amount, 0).toLocaleString()}</Text>
                   </View>
-                  <View style={s.creditDetailItem}>
-                    <View style={[s.dot, { backgroundColor: "#faad14" }]} />
-                    <Text style={s.creditDetailLabel}>Pending</Text>
-                    <Text style={[s.creditDetailVal, { color: "#e67e00" }]}>Rs. {(data?.totalCreditPending ?? 0).toLocaleString()}</Text>
+                  <View style={s.creditDetails}>
+                    <View style={s.creditDetailItem}>
+                      <View style={[s.dot, { backgroundColor: GREEN_COLLECT }]} />
+                      <Text style={s.creditDetailLabel}>Collected</Text>
+                      <Text style={[s.creditDetailVal, { color: GREEN_COLLECT }]}>Rs. {collectedTotal.toLocaleString()}</Text>
+                    </View>
+                    <View style={s.creditDetailItem}>
+                      <View style={[s.dot, { backgroundColor: "#faad14" }]} />
+                      <Text style={s.creditDetailLabel}>Pending</Text>
+                      <Text style={[s.creditDetailVal, { color: "#e67e00" }]}>Rs. {pendingTotal.toLocaleString()}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+
+                {/* Search bar */}
+                <View style={s.searchBar}>
+                  <MagnifyingGlass size={15} color="#A0ADB8" weight="bold" />
+                  <TextInput
+                    style={s.searchInput}
+                    placeholder="Search by name or phone…"
+                    placeholderTextColor="#B8C4BD"
+                    value={creditSearch}
+                    onChangeText={setCreditSearch}
+                    autoCorrect={false}
+                  />
+                  {creditSearch.length > 0 && (
+                    <TouchableOpacity onPress={() => setCreditSearch("")}>
+                      <Text style={s.searchClear}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Hint */}
+                {creditTxs.some(t => !t.creditSettled) && (
+                  <Text style={s.swipeHint}>← Swipe left on pending rows to mark collected</Text>
+                )}
+
+                {/* Credit rows */}
+                <View style={s.section}>
+                  <View style={s.sectionHeader}>
+                    <ListBullets size={14} color="#A0ADB8" weight="bold" />
+                    <Text style={s.sectionTitle}>
+                      Credit Transactions ({filteredCreditTxs.length})
+                    </Text>
+                  </View>
+                  {filteredCreditTxs.length === 0 ? (
+                    <View style={s.emptyBox}>
+                      <Text style={s.emptyText}>
+                        {creditSearch ? "No matches found" : "No credit transactions"}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={s.card}>
+                      {filteredCreditTxs.map((tx, i) => (
+                        <CreditRow
+                          key={tx.id}
+                          tx={tx}
+                          isLast={i === filteredCreditTxs.length - 1}
+                          onSettle={handleSettle}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </>
             )}
 
             {/* Category breakdown */}
-            {categories.length > 0 && (
+            {tab !== "credit" && categories.length > 0 && (
               <View style={s.section}>
                 <View style={s.sectionHeader}>
                   <ChartBar size={14} color="#A0ADB8" weight="bold" />
@@ -274,44 +485,48 @@ export default function Reports() {
               </View>
             )}
 
-            {/* Transaction list */}
-            <View style={s.section}>
-              <View style={s.sectionHeader}>
-                <ListBullets size={14} color="#A0ADB8" weight="bold" />
-                <Text style={s.sectionTitle}>Transactions ({transactions.length})</Text>
-              </View>
-              {transactions.length === 0 ? (
-                <View style={s.emptyBox}>
-                  <Text style={s.emptyText}>No transactions found</Text>
+            {/* Transaction list — all/sales/expenses tabs */}
+            {tab !== "credit" && (
+              <View style={s.section}>
+                <View style={s.sectionHeader}>
+                  <ListBullets size={14} color="#A0ADB8" weight="bold" />
+                  <Text style={s.sectionTitle}>Transactions ({transactions.length})</Text>
                 </View>
-              ) : (
-                <View style={s.card}>
-                  {transactions.map((tx, i) => (
-                    <View key={tx.id} style={[s.txRow, i < transactions.length - 1 && s.catBorder]}>
-                      <View style={[s.txTypeDot, { backgroundColor: typeColor(tx.type) }]} />
-                      <View style={s.txInfo}>
-                        <Text style={s.txName}>{tx.itemName}</Text>
-                        {tx.customerName ? (
-                          <Text style={s.txMeta}>{tx.customerName}{tx.customerPhone ? ` · ${tx.customerPhone}` : ""}</Text>
-                        ) : null}
-                        {tx.type === "credit" && (
-                          <View style={[s.creditBadge, { backgroundColor: tx.creditSettled ? "#E8F5EE" : "#FFF7E6" }]}>
-                            <Text style={[s.creditBadgeText, { color: tx.creditSettled ? TEAL : "#e67e00" }]}>
-                              {tx.creditSettled ? "Settled" : "Pending"}
-                            </Text>
-                          </View>
-                        )}
-                        <Text style={s.txDate}>{fmtDate(tx.createdAt)} · {fmtTime(tx.createdAt)}</Text>
+                {transactions.length === 0 ? (
+                  <View style={s.emptyBox}>
+                    <Text style={s.emptyText}>No transactions found</Text>
+                  </View>
+                ) : (
+                  <View style={s.card}>
+                    {transactions.map((tx, i) => (
+                      <View key={tx.id} style={[s.txRow, i < transactions.length - 1 && s.catBorder]}>
+                        <View style={[s.txTypeDot, { backgroundColor: typeColor(tx.type) }]} />
+                        <View style={s.txInfo}>
+                          <Text style={s.txName}>{tx.itemName}</Text>
+                          {tx.customerName ? (
+                            <Text style={s.txMeta}>{tx.customerName}{tx.customerPhone ? ` · ${tx.customerPhone}` : ""}</Text>
+                          ) : null}
+                          {tx.userName ? (
+                            <Text style={s.txAddedBy}>Added by {tx.userName}</Text>
+                          ) : null}
+                          {tx.type === "credit" && (
+                            <View style={[s.creditBadge, { backgroundColor: tx.creditSettled ? "#E8F5EE" : "#FFF7E6" }]}>
+                              <Text style={[s.creditBadgeText, { color: tx.creditSettled ? TEAL : "#e67e00" }]}>
+                                {tx.creditSettled ? "Collected" : "Pending"}
+                              </Text>
+                            </View>
+                          )}
+                          <Text style={s.txDate}>{fmtDate(tx.createdAt)} · {fmtTime(tx.createdAt)}</Text>
+                        </View>
+                        <Text style={[s.txAmount, { color: tx.type === "expense" ? RED : tx.type === "credit" ? BLUE : TEAL }]}>
+                          {tx.type === "expense" ? "-" : "+"}Rs. {tx.amount.toLocaleString()}
+                        </Text>
                       </View>
-                      <Text style={[s.txAmount, { color: tx.type === "expense" ? RED : tx.type === "credit" ? BLUE : TEAL }]}>
-                        {tx.type === "expense" ? "-" : "+"}Rs. {tx.amount.toLocaleString()}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -380,6 +595,19 @@ const s = StyleSheet.create({
   profitNeg: { backgroundColor: "#FDECEA" },
   profitLabel: { fontSize: 13, color: "#555", fontWeight: "600" },
   profitVal: { fontSize: 16, fontWeight: "800" },
+  swipeHint: {
+    fontSize: 11, color: "#A0ADB8", textAlign: "center",
+    marginBottom: 10, fontStyle: "italic",
+  },
+  searchBar: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#fff", borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 10,
+    marginBottom: 10,
+    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: "#1a2e22", padding: 0 },
+  searchClear: { fontSize: 13, color: "#A0ADB8", paddingHorizontal: 4 },
   section: { marginBottom: 16 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, paddingLeft: 4 },
   sectionTitle: { fontSize: 11, fontWeight: "700", color: "#A0ADB8", textTransform: "uppercase", letterSpacing: 1 },
@@ -407,6 +635,7 @@ const s = StyleSheet.create({
   txInfo: { flex: 1 },
   txName: { fontSize: 14, fontWeight: "600", color: "#1a2e22" },
   txMeta: { fontSize: 12, color: "#A0ADB8", marginTop: 1 },
+  txAddedBy: { fontSize: 11, color: "#B0BEC5", marginTop: 1, fontStyle: "italic" },
   txDate: { fontSize: 11, color: "#C0CCC8", marginTop: 3 },
   txAmount: { fontSize: 14, fontWeight: "700", marginTop: 2 },
   creditBadge: {

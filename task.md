@@ -1,22 +1,25 @@
-# CashBook Task Tracker
+# Tasks
 
-## Status: DONE ✅
+## Reports - show userName per transaction
+- API: join users table, return userName in transactions
+- Mobile: show userName below item name in transaction list
 
-## Completed Steps
-1. ✅ App init + monorepo structure
-2. ✅ DB schema (users, shops, transactions, items, sessions, accounts, verifications)
-3. ✅ Auth setup (Better Auth + bearer plugin + expo plugin)
-4. ✅ API routes: /shops, /staff, /items, /transactions, /dashboard, /mobile-login, /me
-5. ✅ Web admin pages: login, dashboard, shops, staff, items
-6. ✅ Mobile screens: sign-in, tabs (dashboard, sales, settings)
-7. ✅ Mobile modals: NewSaleModal, CreditModal, ExpenseModal, NumPad
-8. ✅ TypeScript: zero errors in both web and mobile
-9. ✅ Dev server running at :5173
+## Credit tab - swipe left to mark collected
+- Use Animated + PanResponder for swipe-left reveal action
+- Add "Collected" column in credit summary (separate from settled stats)
+- Add search bar (name + phone) in credit tab
 
-## Key decisions
-- mobile-login: shopCode + username + password → Better Auth signInEmail internally
-- transactions API: returns { transactions, totalSales, totalExpenses }
-- items API: returns { items }
-- dashboard: /api/dashboard?shopId=X&from=YYYY-MM-DD&to=YYYY-MM-DD
-- Primary: #419873, Red: #e03a2a
-- NumPad: * = backspace
+## Sale/Expense submit - fire and forget (close immediately)
+- Close modal immediately on submit press
+- POST runs in background, refetch after
+
+## Professional top bar (Dashboard)
+- Logo/shop name, date, greeting, notification bell style
+- Clean gradient or solid with subtle info
+
+## Status
+- [ ] API: add userName to reports
+- [ ] Reports: userName per tx row
+- [ ] Reports credit tab: swipe-to-settle + collected column + search
+- [ ] Fire-and-forget submit
+- [ ] Pro top bar

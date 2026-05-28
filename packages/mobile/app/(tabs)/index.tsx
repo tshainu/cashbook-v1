@@ -107,9 +107,28 @@ export default function Dashboard() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       {/* Top bar */}
       <View style={s.topBar}>
-        <View>
-          <Text style={s.shopName}>{user?.shopName ?? "My Shop"}</Text>
-          <Text style={s.greeting}>Good {getGreeting()}, {user?.name?.split(" ")[0] ?? "there"}</Text>
+        {/* Left: shop icon + name */}
+        <View style={s.topLeft}>
+          <View style={s.shopIconWrap}>
+            <Text style={s.shopIconText}>
+              {(user?.shopName ?? "S").charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View>
+            <Text style={s.shopName}>{user?.shopName ?? "My Shop"}</Text>
+            <Text style={s.greeting}>Good {getGreeting()}</Text>
+          </View>
+        </View>
+        {/* Right: date pill + user avatar */}
+        <View style={s.topRight}>
+          <View style={s.datePill}>
+            <Text style={s.datePillText}>{getTodayLabel()}</Text>
+          </View>
+          <View style={s.avatarCircle}>
+            <Text style={s.avatarText}>
+              {(user?.name ?? "U").charAt(0).toUpperCase()}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -272,16 +291,51 @@ function getGreeting() {
   return "evening";
 }
 
+function getTodayLabel() {
+  const d = new Date();
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+}
+
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F4F7F5" },
   topBar: {
     backgroundColor: TEAL,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: 18,
+    paddingBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 6,
   },
-  shopName: { fontSize: 20, fontWeight: "800", color: "#fff" },
-  greeting: { fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  topLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  shopIconWrap: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center", justifyContent: "center",
+  },
+  shopIconText: { color: "#fff", fontSize: 18, fontWeight: "900" },
+  shopName: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },
+  greeting: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 1 },
+  topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  datePill: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  datePillText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  avatarCircle: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.5)",
+  },
+  avatarText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 24 },
   periodRow: { gap: 8, paddingBottom: 16 },

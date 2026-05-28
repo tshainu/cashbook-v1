@@ -79,28 +79,24 @@ export default function ExpenseModal({ visible, shopId, onClose, onSuccess }: Pr
     setAmount(p => p.length >= 10 ? p : p + key);
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) { Alert.alert("Error", "Enter a valid amount."); return; }
     if (!selectedItem) { Alert.alert("Error", "Please select a category."); return; }
-    setLoading(true);
-    try {
-      await authFetch("/api/transactions", {
-        method: "POST",
-        body: JSON.stringify({
-          shopId: Number(shopId), itemId: Number(selectedItem.id),
-          itemName: selectedItem.name, amount: parsed, type: "expense",
-          customerName: null, customerPhone: null, promiseDate: null, note: null,
-        }),
-      });
-      setLoading(false);
-      onSuccess();
-    } catch (e: any) {
-      setLoading(false);
+    // Fire-and-forget: close modal instantly, save in background
+    onSuccess();
+    authFetch("/api/transactions", {
+      method: "POST",
+      body: JSON.stringify({
+        shopId: Number(shopId), itemId: Number(selectedItem.id),
+        itemName: selectedItem.name, amount: parsed, type: "expense",
+        customerName: null, customerPhone: null, promiseDate: null, note: null,
+      }),
+    }).catch((e: any) => {
       if (e?.message !== "Session expired") {
-        Alert.alert("Error", e?.message || "Failed to save expense.");
+        Alert.alert("Save failed", e?.message || "Expense could not be saved. Please try again.");
       }
-    }
+    });
   }
 
   return (
@@ -163,14 +159,10 @@ export default function ExpenseModal({ visible, shopId, onClose, onSuccess }: Pr
 
           {/* Submit */}
           <TouchableOpacity
-            style={[s.submitBtn, loading && s.btnDisabled]}
+            style={s.submitBtn}
             onPress={handleSubmit}
-            disabled={loading}
           >
-            {loading
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <><CheckCircle size={18} color="#fff" weight="fill" /><Text style={s.submitText}> Submit Expense</Text></>
-            }
+            <><CheckCircle size={18} color="#fff" weight="fill" /><Text style={s.submitText}> Submit Expense</Text></>
           </TouchableOpacity>
         </View>
       </View>

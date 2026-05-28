@@ -80,28 +80,24 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
     setAmount(p => p.length >= 10 ? p : p + key);
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) { Alert.alert("Error", "Enter a valid amount."); return; }
     if (!selectedItem) { Alert.alert("Error", "Please select an item."); return; }
-    setLoading(true);
-    try {
-      await authFetch("/api/transactions", {
-        method: "POST",
-        body: JSON.stringify({
-          shopId: Number(shopId), itemId: Number(selectedItem.id),
-          itemName: selectedItem.name, amount: parsed, type: "sale",
-          customerName: null, customerPhone: null, promiseDate: null, note: null,
-        }),
-      });
-      setLoading(false);
-      onSuccess();
-    } catch (e: any) {
-      setLoading(false);
+    // Fire-and-forget: close modal instantly, save in background
+    onSuccess();
+    authFetch("/api/transactions", {
+      method: "POST",
+      body: JSON.stringify({
+        shopId: Number(shopId), itemId: Number(selectedItem.id),
+        itemName: selectedItem.name, amount: parsed, type: "sale",
+        customerName: null, customerPhone: null, promiseDate: null, note: null,
+      }),
+    }).catch((e: any) => {
       if (e?.message !== "Session expired") {
-        Alert.alert("Error", e?.message || "Failed to save sale.");
+        Alert.alert("Save failed", e?.message || "Sale could not be saved. Please try again.");
       }
-    }
+    });
   }
 
   return (
@@ -166,14 +162,10 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
             {/* Actions */}
             <View style={s.actions}>
               <TouchableOpacity
-                style={[s.btn, s.btnPrimary, loading && s.btnDisabled]}
+                style={[s.btn, s.btnPrimary]}
                 onPress={handleSubmit}
-                disabled={loading}
               >
-                {loading
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <><CheckCircle size={18} color="#fff" weight="fill" /><Text style={s.btnText}> Submit</Text></>
-                }
+                <><CheckCircle size={18} color="#fff" weight="fill" /><Text style={s.btnText}> Submit</Text></>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.btn, s.btnCredit]}
