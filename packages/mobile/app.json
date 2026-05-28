@@ -5,7 +5,7 @@
       "package": "com.cashbook_cb9x.runable",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#419873"
+        "backgroundColor": "#1a6644"
       },
       "edgeToEdgeEnabled": true
     },
@@ -20,14 +20,9 @@
       "bundleIdentifier": "com.cashbook_cb9x.runable",
       "supportsTablet": true
     },
-    "splash": {
-      "image": "./assets/images/splash.jpg",
-      "resizeMode": "cover",
-      "backgroundColor": "#ffffff"
-    },
     "name": "Cash Book",
     "slug": "cash-book",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "cashbook",
     "orientation": "portrait",
     "userInterfaceStyle": "light",

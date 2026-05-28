@@ -26,8 +26,21 @@ export function mobileAuth(db: LibSQLDatabase<typeof schema>, auth: AuthInstance
       const valid = await verifyPassword(account.password, password);
       if (!valid) return c.json({ message: "Invalid password" }, 401);
 
-      // Generate a simple session token
+      // Create a real session token stored in the sessions table
       const token = crypto.randomUUID();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+      await db.insert(schema.sessions).values({
+        id: crypto.randomUUID(),
+        token,
+        userId: user.id,
+        expiresAt,
+        createdAt: now,
+        updatedAt: now,
+        ipAddress: c.req.header("x-forwarded-for") ?? null,
+        userAgent: c.req.header("user-agent") ?? null,
+      });
 
       return c.json({
         token,

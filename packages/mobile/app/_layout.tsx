@@ -3,27 +3,11 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { View, Image, StyleSheet, Dimensions } from "react-native";
 import { getToken, getStoredUser } from "../lib/auth";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
-
-const { width: SW, height: SH } = Dimensions.get("window");
-
-function SplashScreen() {
-  return (
-    <View style={splash.container}>
-      <StatusBar style="dark" hidden />
-      <Image
-        source={require("../assets/images/splash.jpg")}
-        style={splash.image}
-        resizeMode="cover"
-      />
-    </View>
-  );
-}
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -48,15 +32,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 2500);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (showSplash) return <SplashScreen />;
-
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
@@ -71,14 +46,3 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
-
-const splash = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  image: {
-    width: SW,
-    height: SH,
-  },
-});

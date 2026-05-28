@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View, Text, Modal, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, ScrollView,
@@ -28,6 +28,7 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
   const [loading, setLoading] = useState(false);
   const [showCredit, setShowCredit] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const isFresh = useRef(false);
   const insets = useSafeAreaInsets();
 
   const { data: items = [] } = useQuery<Item[]>({
@@ -45,7 +46,7 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
   });
 
   useEffect(() => {
-    if (!visible) { setSelectedItem(null); setAmount(""); setPickerOpen(false); }
+    if (!visible) { setSelectedItem(null); setAmount(""); setPickerOpen(false); isFresh.current = false; }
   }, [visible]);
 
   // Auto-select first item when items load
@@ -56,11 +57,24 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
   }, [items]);
 
   useEffect(() => {
-    if (selectedItem?.price != null) setAmount(String(selectedItem.price));
+    if (selectedItem?.price != null) {
+      setAmount(String(selectedItem.price));
+      isFresh.current = true;
+    } else {
+      setAmount("");
+      isFresh.current = false;
+    }
   }, [selectedItem]);
 
   function handleKey(key: string) {
-    if (key === "*") { setAmount(p => p.slice(0, -1)); return; }
+    if (key === "*") { setAmount(p => p.slice(0, -1)); isFresh.current = false; return; }
+    // First keypress after auto-fill: replace entire amount
+    if (isFresh.current) {
+      isFresh.current = false;
+      if (key === ".") { setAmount("0."); return; }
+      setAmount(key);
+      return;
+    }
     if (key === "." && amount.includes(".")) return;
     setAmount(p => p.length >= 10 ? p : p + key);
   }

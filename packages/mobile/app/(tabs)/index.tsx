@@ -63,7 +63,6 @@ export default function Dashboard() {
   const [showSale, setShowSale] = useState(false);
   const [showExpense, setShowExpense] = useState(false);
   const insets = useSafeAreaInsets();
-  const fabBottom = insets.bottom + 16;
 
   const { from, to } = useMemo(() => getPeriodDates(period), [period]);
 
@@ -239,7 +238,7 @@ export default function Dashboard() {
       </ScrollView>
 
       {/* FAB row */}
-      <View style={[s.fabRow, { bottom: fabBottom }]}>
+      <View style={[s.fabRow, { paddingBottom: insets.bottom + 8 }]}>
         <TouchableOpacity style={[s.fab, { backgroundColor: TEAL }]} onPress={() => setShowSale(true)} activeOpacity={0.85}>
           <Image source={require("../../assets/income.png")} style={s.fabIcon} />
           <Text style={s.fabText}>Sales</Text>
@@ -284,7 +283,7 @@ const s = StyleSheet.create({
   shopName: { fontSize: 20, fontWeight: "800", color: "#fff" },
   greeting: { fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 2 },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 120 },
+  content: { padding: 16, paddingBottom: 24 },
   periodRow: { gap: 8, paddingBottom: 16 },
   periodTab: {
     paddingHorizontal: 14, paddingVertical: 7,
@@ -342,8 +341,12 @@ const s = StyleSheet.create({
 
   // FABs
   fabRow: {
-    position: "absolute", bottom: 16, left: 16, right: 16,
     flexDirection: "row", gap: 12,
+    backgroundColor: "#F4F7F5",
+    paddingTop: 10,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E8EDE9",
   },
   fab: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
