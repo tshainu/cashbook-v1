@@ -6,7 +6,7 @@ import { requireAuth } from "../middleware/auth";
 
 export function dashboard(db: LibSQLDatabase<typeof schema>) {
   return new Hono()
-    .get("/", requireAuth, async (c) => {
+    .get("/", async (c) => {
       const shopId = parseInt(c.req.query("shopId") ?? "0");
       const from = c.req.query("from");
       const to = c.req.query("to");

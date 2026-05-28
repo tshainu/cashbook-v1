@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Wallet, Receipt, Gear } from "phosphor-react-native";
+import { Wallet, Database, Gear } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TEAL = "#419873";
@@ -33,10 +33,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="sales"
+        name="data"
         options={{
-          title: "Sales",
-          tabBarIcon: ({ color, size }) => <Receipt color={color} size={size ?? 24} weight="fill" />,
+          title: "Data",
+          tabBarIcon: ({ color, size }) => <Database color={color} size={size ?? 24} weight="fill" />,
         }}
       />
       <Tabs.Screen

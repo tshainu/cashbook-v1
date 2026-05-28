@@ -3,6 +3,7 @@ import {
   View, Text, Modal, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, CaretDown, CheckCircle } from "phosphor-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -27,6 +28,7 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
   const [loading, setLoading] = useState(false);
   const [showCredit, setShowCredit] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const { data: items = [] } = useQuery<Item[]>({
     queryKey: ["items", shopId, "sale"],
@@ -45,6 +47,13 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
   useEffect(() => {
     if (!visible) { setSelectedItem(null); setAmount(""); setPickerOpen(false); }
   }, [visible]);
+
+  // Auto-select first item when items load
+  useEffect(() => {
+    if (items.length > 0 && !selectedItem) {
+      setSelectedItem(items[0]);
+    }
+  }, [items]);
 
   useEffect(() => {
     if (selectedItem?.price != null) setAmount(String(selectedItem.price));
@@ -82,7 +91,7 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
     <>
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={s.overlay}>
-          <View style={s.sheet}>
+          <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
             {/* Handle */}
             <View style={s.handle} />
 
@@ -179,7 +188,6 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingBottom: 36,
     paddingTop: 12,
   },
   handle: {

@@ -3,6 +3,7 @@ import {
   View, Text, Modal, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert, ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, CaretDown, CheckCircle } from "phosphor-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -25,6 +26,7 @@ export default function ExpenseModal({ visible, shopId, onClose, onSuccess }: Pr
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const { data: items = [] } = useQuery<Item[]>({
     queryKey: ["items", shopId, "expense"],
@@ -75,7 +77,7 @@ export default function ExpenseModal({ visible, shopId, onClose, onSuccess }: Pr
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.overlay}>
-        <View style={s.sheet}>
+        <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}>
           {/* Handle */}
           <View style={s.handle} />
 
@@ -154,7 +156,6 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingBottom: 36,
     paddingTop: 12,
   },
   handle: {

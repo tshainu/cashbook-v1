@@ -177,7 +177,7 @@ export default function Dashboard() {
                 </View>
               </View>
 
-              {maxVal === 1 && !hasData ? (
+              {!hasData ? (
                 <View style={s.noDataBox}>
                   <Text style={s.noDataText}>No transactions yet</Text>
                   <Text style={s.noDataSub}>Add a sale or expense to see the chart</Text>
