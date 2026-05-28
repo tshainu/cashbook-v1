@@ -10,7 +10,11 @@
       "edgeToEdgeEnabled": true
     },
     "extra": {
-      "apiUrl": "https://cryiecm2q4gamfi73lhfs-preview-4200.runable.site/"
+      "apiUrl": "https://cryiecm2q4gamfi73lhfs-preview-4200.runable.site/",
+      "router": {},
+      "eas": {
+        "projectId": "4c40593c-9ada-4c9b-8c80-085df587993b"
+      }
     },
     "ios": {
       "bundleIdentifier": "com.cashbook_cb9x.runable",
@@ -35,6 +39,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "owner": "axisx1"
   }
 }
