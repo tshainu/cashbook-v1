@@ -7,8 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, CaretDown, CheckCircle } from "phosphor-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { getToken } from "../lib/auth";
+import Constants from "expo-constants";
 import NumPad from "./NumPad";
 import CreditModal from "./CreditModal";
+
+const BASE = Constants.expoConfig?.extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL ?? "";
 
 const TEAL = "#419873";
 const BG = "#F7FAF8";
@@ -85,19 +89,28 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
     if (!selectedItem) { Alert.alert("Error", "Please select an item."); return; }
     setLoading(true);
     try {
-      const res = await api.transactions.$post({
-        json: {
+      const token = getToken();
+      const res = await fetch(`${BASE}/api/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
           shopId: Number(shopId), itemId: Number(selectedItem.id),
           itemName: selectedItem.name, amount: parsed, type: "sale",
           customerName: null, customerPhone: null, promiseDate: null, note: null,
-        } as any,
+        }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || `Server error ${res.status}`);
+      }
       setLoading(false);
       onSuccess();
-    } catch {
+    } catch (e: any) {
       setLoading(false);
-      Alert.alert("Error", "Failed to save sale.");
+      Alert.alert("Error", e?.message || "Failed to save sale.");
     }
   }
 

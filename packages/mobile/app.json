@@ -5,7 +5,7 @@
       "package": "com.cashbook_cb9x.runable",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#1a6644"
+        "backgroundColor": "#1c5f3c"
       },
       "edgeToEdgeEnabled": true
     },

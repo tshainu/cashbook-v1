@@ -237,8 +237,8 @@ export default function Dashboard() {
         )}
       </ScrollView>
 
-      {/* FAB row */}
-      <View style={[s.fabRow, { paddingBottom: insets.bottom + 8 }]}>
+      {/* FAB row — sits directly above the bottom tab bar */}
+      <View style={s.fabRow}>
         <TouchableOpacity style={[s.fab, { backgroundColor: TEAL }]} onPress={() => setShowSale(true)} activeOpacity={0.85}>
           <Image source={require("../../assets/income.png")} style={s.fabIcon} />
           <Text style={s.fabText}>Sales</Text>
@@ -344,6 +344,7 @@ const s = StyleSheet.create({
     flexDirection: "row", gap: 12,
     backgroundColor: "#F4F7F5",
     paddingTop: 10,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: "#E8EDE9",

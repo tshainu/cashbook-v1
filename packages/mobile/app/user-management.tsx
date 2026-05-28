@@ -8,6 +8,10 @@ import { ArrowLeft, Plus, User, Trash, ShieldCheck, ShoppingCart } from "phospho
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../lib/api";
+import { getToken } from "../lib/auth";
+import Constants from "expo-constants";
+
+const BASE = Constants.expoConfig?.extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL ?? "";
 import { getStoredUser } from "../lib/auth";
 
 const TEAL = "#419873";
@@ -48,14 +52,21 @@ export default function UserManagement() {
     }
     setSaving(true);
     try {
-      const res = await (api as any).staff.$post({
-        json: { shopId: Number(shopId), name: name.trim(), username: username.trim(), password, role },
+      const token = getToken();
+      const res = await fetch(`${BASE}/api/staff`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ shopId: Number(shopId), name: name.trim(), username: username.trim(), password, role }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || `Server error ${res.status}`);
       qc.invalidateQueries({ queryKey: ["shop-staff", shopId] });
       setShowAdd(false); resetForm();
-    } catch {
-      Alert.alert("Error", "Failed to add user.");
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Failed to add user.");
     }
     setSaving(false);
   }

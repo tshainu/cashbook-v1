@@ -5,7 +5,10 @@ import {
 } from "react-native";
 import { X, UserCircle, Phone, CalendarBlank, CheckCircle, CaretUp, CaretDown } from "phosphor-react-native";
 import { api } from "../lib/api";
+import { getToken } from "../lib/auth";
+import Constants from "expo-constants";
 
+const BASE = Constants.expoConfig?.extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL ?? "";
 const BLUE = "#3a6eb5";
 
 interface Props {
@@ -108,8 +111,14 @@ export default function CreditModal({ visible, onClose, onSuccess, shopId, itemI
     if (!parsed || parsed <= 0) { Alert.alert("Error", "Invalid amount."); return; }
     setLoading(true);
     try {
-      const res = await api.transactions.$post({
-        json: {
+      const token = getToken();
+      const res = await fetch(`${BASE}/api/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
           shopId: Number(shopId),
           itemId: itemId ? Number(itemId) : null,
           itemName: "Credit Sale",
@@ -119,15 +128,18 @@ export default function CreditModal({ visible, onClose, onSuccess, shopId, itemI
           customerPhone: phone.trim() || null,
           promiseDate: hasDate ? promiseDate : null,
           note: null,
-        } as any,
+        }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || `Server error ${res.status}`);
+      }
       reset();
       setLoading(false);
       onSuccess();
-    } catch {
+    } catch (e: any) {
       setLoading(false);
-      Alert.alert("Error", "Failed to save credit transaction.");
+      Alert.alert("Error", e?.message || "Failed to save credit transaction.");
     }
   }
 
