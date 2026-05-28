@@ -13,7 +13,7 @@
       "apiUrl": "https://cryiecm2q4gamfi73lhfs-preview-4200.runable.site/",
       "router": {},
       "eas": {
-        "projectId": "4c40593c-9ada-4c9b-8c80-085df587993b"
+        "projectId": "e9541a87-1ef7-4377-ae2d-c42e2ea0e7fa"
       }
     },
     "ios": {
@@ -40,6 +40,6 @@
       "expo-router",
       "expo-secure-store"
     ],
-    "owner": "axisx1"
+    "owner": "smi88"
   }
 }

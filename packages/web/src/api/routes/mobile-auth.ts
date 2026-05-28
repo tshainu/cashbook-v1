@@ -3,24 +3,34 @@ import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "../database/schema";
 import { eq, and } from "drizzle-orm";
 import type { AuthInstance } from "../auth";
+import { verifyPassword } from "../database/password";
 
 export function mobileAuth(db: LibSQLDatabase<typeof schema>, auth: AuthInstance) {
   return new Hono()
     .post("/mobile-login", async (c) => {
       const { shopCode, username, password } = await c.req.json();
+
       const [shop] = await db.select().from(schema.shops).where(eq(schema.shops.shopCode, shopCode));
       if (!shop) return c.json({ message: "Invalid Shop ID" }, 401);
+
       const [user] = await db.select().from(schema.users).where(
         and(eq(schema.users.username, username), eq(schema.users.shopId, shop.id))
       );
       if (!user) return c.json({ message: "Invalid username" }, 401);
-      const result = await auth.api.signInEmail({
-        body: { email: user.email, password },
-        headers: c.req.raw.headers,
-      });
-      if (!result?.token) return c.json({ message: "Invalid password" }, 401);
+
+      const [account] = await db.select().from(schema.accounts).where(
+        and(eq(schema.accounts.userId, user.id), eq(schema.accounts.providerId, "credential"))
+      );
+      if (!account?.password) return c.json({ message: "No credentials set" }, 401);
+
+      const valid = await verifyPassword(account.password, password);
+      if (!valid) return c.json({ message: "Invalid password" }, 401);
+
+      // Generate a simple session token
+      const token = crypto.randomUUID();
+
       return c.json({
-        token: result.token,
+        token,
         user: {
           id: user.id, name: user.name, username: user.username,
           role: user.role, shopId: user.shopId,

@@ -32,7 +32,7 @@ export function shops(db: LibSQLDatabase<typeof schema>) {
         id: userId,
         shopId: shop.id,
         name: ownerName || "Admin",
-        username: `admin_${shopCode.toLowerCase()}`,
+        username: "admin",
         email,
         role: "admin",
         createdAt: now,
