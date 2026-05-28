@@ -16,7 +16,7 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   shopId: integer("shop_id").references(() => shops.id),
   name: text("name").notNull(),
-  username: text("username").notNull().unique(),
+  username: text("username").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: integer("email_verified", { mode: "boolean" }).$defaultFn(() => false),
   image: text("image"),
