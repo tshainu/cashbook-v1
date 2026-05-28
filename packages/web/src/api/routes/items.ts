@@ -6,7 +6,7 @@ import { requireAuth } from "../middleware/auth";
 
 export function items(db: LibSQLDatabase<typeof schema>) {
   return new Hono()
-    .get("/", requireAuth, async (c) => {
+    .get("/", async (c) => {
       const shopId = parseInt(c.req.query("shopId") ?? "0");
       const type = c.req.query("type");
       const all = await db.select().from(schema.items).where(
@@ -20,7 +20,7 @@ export function items(db: LibSQLDatabase<typeof schema>) {
       );
       return c.json({ items: all }, 200);
     })
-    .post("/", requireAuth, async (c) => {
+    .post("/", async (c) => {
       const body = await c.req.json();
       const [item] = await db.insert(schema.items).values({
         shopId: body.shopId,
@@ -31,7 +31,7 @@ export function items(db: LibSQLDatabase<typeof schema>) {
       }).returning();
       return c.json({ item }, 201);
     })
-    .put("/:id", requireAuth, async (c) => {
+    .put("/:id", async (c) => {
       const id = parseInt(c.req.param("id"));
       const body = await c.req.json();
       const [item] = await db.update(schema.items).set({
@@ -42,7 +42,7 @@ export function items(db: LibSQLDatabase<typeof schema>) {
       }).where(eq(schema.items.id, id)).returning();
       return c.json({ item }, 200);
     })
-    .delete("/:id", requireAuth, async (c) => {
+    .delete("/:id", async (c) => {
       const id = parseInt(c.req.param("id"));
       await db.delete(schema.items).where(eq(schema.items.id, id));
       return c.json({ success: true }, 200);

@@ -1,9 +1,13 @@
 import { Tabs } from "expo-router";
 import { Wallet, Receipt, Gear } from "phosphor-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TEAL = "#419873";
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 62 + insets.bottom;
+
   return (
     <Tabs
       screenOptions={{
@@ -12,8 +16,8 @@ export default function TabsLayout() {
           backgroundColor: "#fff",
           borderTopWidth: 1,
           borderTopColor: "#EEF2F0",
-          height: 62,
-          paddingBottom: 10,
+          height: tabBarHeight,
+          paddingBottom: insets.bottom + 6,
           paddingTop: 8,
         },
         tabBarActiveTintColor: TEAL,

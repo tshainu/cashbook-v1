@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";import { TrendUp, TrendDown } from "ph
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Dimensions, ActivityIndicator, Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { LineChart } from "react-native-chart-kit";
 
@@ -62,6 +62,8 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<Period>("month");
   const [showSale, setShowSale] = useState(false);
   const [showExpense, setShowExpense] = useState(false);
+  const insets = useSafeAreaInsets();
+  const fabBottom = insets.bottom + 16;
 
   const { from, to } = useMemo(() => getPeriodDates(period), [period]);
 
@@ -92,6 +94,15 @@ export default function Dashboard() {
   const chartExpenses = hasData ? rawExpenses : [0, 0];
 
   const maxVal = Math.max(...chartSales, ...chartExpenses, 1);
+  // react-native-chart-kit crashes with two datasets when all values are identical/zero
+  // Ensure no dataset has all-identical values by adding a tiny epsilon to last point if needed
+  const safeDataset = (arr: number[]) => {
+    const allSame = arr.every(v => v === arr[0]);
+    if (allSame) return arr.map((v, i) => (i === arr.length - 1 ? v + 0.001 : v));
+    return arr;
+  };
+  const safeSales = safeDataset(chartSales);
+  const safeExpenses = safeDataset(chartExpenses);
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
@@ -177,12 +188,12 @@ export default function Dashboard() {
                     labels: chartLabels,
                     datasets: [
                       {
-                        data: chartSales,
+                        data: safeSales,
                         color: (o = 1) => `rgba(65,152,115,${o})`,
                         strokeWidth: 2.5,
                       },
                       {
-                        data: chartExpenses,
+                        data: safeExpenses,
                         color: (o = 1) => `rgba(224,58,42,${o})`,
                         strokeWidth: 2,
                       },
@@ -228,7 +239,7 @@ export default function Dashboard() {
       </ScrollView>
 
       {/* FAB row */}
-      <View style={s.fabRow}>
+      <View style={[s.fabRow, { bottom: fabBottom }]}>
         <TouchableOpacity style={[s.fab, { backgroundColor: TEAL }]} onPress={() => setShowSale(true)} activeOpacity={0.85}>
           <Image source={require("../../assets/income.png")} style={s.fabIcon} />
           <Text style={s.fabText}>Sales</Text>
@@ -273,7 +284,7 @@ const s = StyleSheet.create({
   shopName: { fontSize: 20, fontWeight: "800", color: "#fff" },
   greeting: { fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 2 },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 110 },
+  content: { padding: 16, paddingBottom: 120 },
   periodRow: { gap: 8, paddingBottom: 16 },
   periodTab: {
     paddingHorizontal: 14, paddingVertical: 7,
@@ -331,7 +342,7 @@ const s = StyleSheet.create({
 
   // FABs
   fabRow: {
-    position: "absolute", bottom: 20, left: 16, right: 16,
+    position: "absolute", bottom: 16, left: 16, right: 16,
     flexDirection: "row", gap: 12,
   },
   fab: {
