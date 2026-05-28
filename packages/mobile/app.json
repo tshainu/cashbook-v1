@@ -26,7 +26,7 @@
     "scheme": "cashbook",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
