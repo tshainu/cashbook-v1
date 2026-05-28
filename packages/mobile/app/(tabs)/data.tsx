@@ -42,12 +42,16 @@ export default function Data() {
   const { data: salesData, isLoading: salesLoading, refetch: refetchSales } = useQuery({
     queryKey: ["data-sales", shopId],
     queryFn: async () => {
-      const res = await api.transactions.$get({ query: { shopId, period: "today", type: "sale" } });
+      // Fetch all non-expense transactions (sale + credit) for today
+      const res = await api.transactions.$get({ query: { shopId, period: "today" } });
       if (!res.ok) throw new Error();
       const d = await res.json() as any;
-      return (d.transactions ?? d) as Tx[];
+      const all = (d.transactions ?? d) as Tx[];
+      return all.filter(t => t.type === "sale" || t.type === "credit");
     },
     enabled: !!shopId,
+    refetchInterval: 3000,
+    staleTime: 0,
   });
 
   const { data: expensesData, isLoading: expensesLoading, refetch: refetchExpenses } = useQuery({
@@ -59,6 +63,8 @@ export default function Data() {
       return (d.transactions ?? d) as Tx[];
     },
     enabled: !!shopId,
+    refetchInterval: 3000,
+    staleTime: 0,
   });
 
   const sales = salesData ?? [];
@@ -207,7 +213,7 @@ export default function Data() {
         visible={showSaleModal}
         shopId={String(shopId)}
         onClose={() => setShowSaleModal(false)}
-        onSuccess={() => { setShowSaleModal(false); refetchSales(); }}
+        onSuccess={() => { refetchSales(); }}
       />
       <ExpenseModal
         visible={showExpenseModal}

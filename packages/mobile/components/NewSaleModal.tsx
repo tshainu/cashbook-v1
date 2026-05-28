@@ -85,7 +85,9 @@ export default function NewSaleModal({ visible, shopId, onClose, onSuccess }: Pr
     const parsed = parseFloat(amount);
     if (!parsed || parsed <= 0) { Alert.alert("Error", "Enter a valid amount."); return; }
     if (!selectedItem) { Alert.alert("Error", "Please select an item."); return; }
-    // Fire-and-forget: close modal instantly, queue or save in background
+    // Keep modal open — just reset amount and notify parent to refetch
+    setAmount("");
+    isFresh.current = false;
     onSuccess();
     offlineAuthFetch("/api/transactions", {
       method: "POST",
@@ -224,7 +226,7 @@ const s = StyleSheet.create({
   pickerPlaceholder: { color: "#B0BDB6" },
   dropdown: {
     borderWidth: 1.5, borderColor: "#E0E8E3", borderRadius: 12,
-    maxHeight: 150, backgroundColor: "#fff", marginBottom: 8,
+    maxHeight: 220, backgroundColor: "#fff", marginBottom: 8,
   },
   dropItem: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",

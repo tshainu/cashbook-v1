@@ -68,12 +68,12 @@ export default function Settings() {
     {
       title: "Account",
       items: [
-        {
+        ...((user as any)?.role === "admin" ? [{
           icon: <Users size={20} color={TEAL} weight="fill" />,
           label: "User Management",
           sub: "Add or manage staff",
           onPress: () => router.push("/user-management"),
-        },
+        }] : []),
         {
           icon: <GearSix size={20} color={TEAL} weight="fill" />,
           label: "App Settings",

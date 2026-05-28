@@ -20,6 +20,25 @@ export default function UserManagement() {
   const router = useRouter();
   const user = getStoredUser();
   const shopId = user?.shopId ?? "";
+
+  // Role guard — cashiers cannot access this screen
+  if ((user as any)?.role !== "admin") {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#F4F7F5" }} edges={["top"]}>
+        <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#419873", paddingHorizontal: 16, paddingVertical: 14, gap: 12 }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
+            <ArrowLeft size={22} color="#fff" weight="bold" />
+          </TouchableOpacity>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: "800", color: "#fff" }}>User Management</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 32 }}>
+          <ShieldCheck size={56} color="#D0D8D4" weight="duotone" />
+          <Text style={{ fontSize: 18, fontWeight: "800", color: "#A0ADB8" }}>Access Denied</Text>
+          <Text style={{ fontSize: 14, color: "#B0BDB6", textAlign: "center" }}>Only admins can manage users.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");

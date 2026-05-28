@@ -77,6 +77,8 @@ export default function Dashboard() {
       return res.json();
     },
     enabled: !!shopId,
+    refetchInterval: 5000,
+    staleTime: 0,
   });
 
   const income = data?.income ?? 0;
@@ -288,7 +290,7 @@ export default function Dashboard() {
         visible={showSale}
         shopId={String(shopId)}
         onClose={() => setShowSale(false)}
-        onSuccess={() => { setShowSale(false); refetch(); }}
+        onSuccess={() => { refetch(); }}
       />
       <ExpenseModal
         visible={showExpense}
