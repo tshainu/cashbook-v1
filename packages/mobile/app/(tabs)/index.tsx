@@ -90,12 +90,20 @@ export default function Dashboard() {
   const rawSales: number[] = (data as any)?.chartSales ?? [];
   const rawExpenses: number[] = (data as any)?.chartExpenses ?? [];
 
-  const hasData = rawLabels.length >= 2;
+  // For "today" hourly chart, thin by more labels; for others, 7 max
+  const maxLabels = period === "today" ? 8 : 7;
+  const hasEnoughPoints = rawLabels.length >= 2;
+  const hasAnyValue = rawSales.some(v => v > 0) || rawExpenses.some(v => v > 0);
+  const hasData = hasEnoughPoints || hasAnyValue;
 
-  // Pad to at least 2 points if needed
-  const chartLabels = hasData ? thinLabels(rawLabels, 7) : ["Start", "Now"];
-  const chartSales = hasData ? rawSales : [0, 0];
-  const chartExpenses = hasData ? rawExpenses : [0, 0];
+  // Ensure at least 2 points for line chart to render
+  const paddedLabels = rawLabels.length >= 2 ? rawLabels : rawLabels.length === 1 ? [...rawLabels, rawLabels[0]] : ["–", "–"];
+  const paddedSales = rawSales.length >= 2 ? rawSales : rawSales.length === 1 ? [...rawSales, rawSales[0]] : [0, 0];
+  const paddedExpenses = rawExpenses.length >= 2 ? rawExpenses : rawExpenses.length === 1 ? [...rawExpenses, rawExpenses[0]] : [0, 0];
+
+  const chartLabels = hasData ? thinLabels(paddedLabels, maxLabels) : ["Start", "Now"];
+  const chartSales = hasData ? paddedSales : [0, 0];
+  const chartExpenses = hasData ? paddedExpenses : [0, 0];
 
   const maxVal = Math.max(...chartSales, ...chartExpenses, 1);
   // react-native-chart-kit crashes with two datasets when all values are identical/zero
@@ -200,7 +208,7 @@ export default function Dashboard() {
             {/* Sales Chart */}
             <View style={s.chartCard}>
               <View style={s.chartHeader}>
-                <Text style={s.chartTitle}>Sales & Expenses</Text>
+                <Text style={s.chartTitle}>{period === "today" ? "Today by Hour" : "Sales & Expenses"}</Text>
                 <View style={s.chartLegend}>
                   <View style={s.legendItem}>
                     <View style={[s.legendDot, { backgroundColor: TEAL }]} />

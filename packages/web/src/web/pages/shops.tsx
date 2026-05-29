@@ -38,6 +38,15 @@ function FormField({
   );
 }
 
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-1">
+      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</span>
+      <span className={`text-3xl font-bold ${color}`}>{value}</span>
+    </div>
+  );
+}
+
 export default function ShopsPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState(emptyForm);
@@ -49,10 +58,17 @@ export default function ShopsPage() {
     queryFn: async () => (await api.shops.$get()).json(),
   });
 
+  const { data: statsData } = useQuery({
+    queryKey: ["shops-stats"],
+    queryFn: async () => (await (api.shops as any).stats.$get()).json(),
+    refetchInterval: 10000,
+  });
+
   const createShop = useMutation({
     mutationFn: async (d: any) => (await api.shops.$post({ json: d })).json(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["shops"] });
+      qc.invalidateQueries({ queryKey: ["shops-stats"] });
       setShowForm(false);
       setForm(emptyForm());
     },
@@ -67,20 +83,34 @@ export default function ShopsPage() {
     },
   });
 
+  const suspendShop = useMutation({
+    mutationFn: async ({ id, suspended }: { id: number; suspended: boolean }) =>
+      (await (api.shops as any)[":id"].suspend.$patch({ param: { id: String(id) }, json: { suspended } })).json(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shops"] });
+      qc.invalidateQueries({ queryKey: ["shops-stats"] });
+    },
+  });
+
   const deleteShop = useMutation({
     mutationFn: async (id: number) =>
       (await (api.shops as any)[":id"].$delete({ param: { id: String(id) } })).json(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["shops"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["shops"] });
+      qc.invalidateQueries({ queryKey: ["shops-stats"] });
+    },
   });
 
   const shops = data?.shops ?? [];
+  const stats = statsData ?? { total: 0, active: 0, suspended: 0, thisMonth: 0, thisYear: 0 };
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Shops</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage shop accounts</p>
+          <p className="text-gray-500 text-sm mt-1">Manage and monitor all shop accounts</p>
         </div>
         <button
           onClick={() => { setShowForm(true); setEditing(null); setForm(emptyForm()); }}
@@ -91,92 +121,52 @@ export default function ShopsPage() {
         </button>
       </div>
 
+      {/* Stats row */}
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        <StatCard label="Total Shops" value={stats.total} color="text-gray-800" />
+        <StatCard label="Active" value={stats.active} color="text-green-600" />
+        <StatCard label="Suspended" value={stats.suspended} color="text-red-500" />
+        <StatCard label="This Month" value={stats.thisMonth} color="text-blue-600" />
+        <StatCard label="This Year" value={stats.thisYear} color="text-purple-600" />
+      </div>
+
       {/* Create Form */}
       {showForm && !editing && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-800 mb-5">New Shop</h3>
           <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label="Shop Name"
-              value={form.name}
-              onChange={v => setForm({ ...form, name: v })}
-              placeholder="e.g. Axis Super Store"
-            />
-            <FormField
-              label="Owner's Name"
-              value={form.ownerName}
-              onChange={v => setForm({ ...form, ownerName: v })}
-              placeholder="e.g. Kamal Perera"
-            />
-            <FormField
-              label="Shop Address"
-              value={form.address}
-              onChange={v => setForm({ ...form, address: v })}
-              placeholder="e.g. 42 Main Street, Colombo"
-            />
-            <FormField
-              label="Contact Number"
-              value={form.contactNumber}
-              onChange={v => setForm({ ...form, contactNumber: v })}
-              placeholder="e.g. 0771234567"
-            />
-
-            {/* Shop ID — auto-generated, read-only with refresh button */}
+            <FormField label="Shop Name" value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="e.g. Axis Super Store" />
+            <FormField label="Owner's Name" value={form.ownerName} onChange={v => setForm({ ...form, ownerName: v })} placeholder="e.g. Kamal Perera" />
+            <FormField label="Shop Address" value={form.address} onChange={v => setForm({ ...form, address: v })} placeholder="e.g. 42 Main Street, Colombo" />
+            <FormField label="Contact Number" value={form.contactNumber} onChange={v => setForm({ ...form, contactNumber: v })} placeholder="e.g. 0771234567" />
             <div>
               <label className="text-sm text-gray-600 mb-1 block">Shop ID</label>
               <div className="flex gap-2">
-                <input
-                  value={form.shopCode}
-                  readOnly
-                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-700 font-mono cursor-default focus:outline-none"
-                />
-                <button
-                  onClick={() => setForm({ ...form, shopCode: generateShopId() })}
-                  title="Regenerate ID"
-                  className="px-3 py-2.5 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 text-sm"
-                >
-                  ↻
-                </button>
+                <input value={form.shopCode} readOnly
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-700 font-mono cursor-default focus:outline-none" />
+                <button onClick={() => setForm({ ...form, shopCode: generateShopId() })}
+                  className="px-3 py-2.5 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 text-sm">↻</button>
               </div>
             </div>
-
-            {/* Admin login section */}
             <div className="col-span-2 mt-1">
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Admin Login Credentials</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    label="Username"
-                    value="admin"
-                    readOnly
-                  />
-                  <FormField
-                    label="Password"
-                    value={form.password}
-                    onChange={v => setForm({ ...form, password: v })}
-                    placeholder="Set a password"
-                    type="password"
-                  />
+                  <FormField label="Username" value="admin" readOnly />
+                  <FormField label="Password" value={form.password} onChange={v => setForm({ ...form, password: v })} placeholder="Set a password" type="password" />
                 </div>
               </div>
             </div>
           </div>
-
           <div className="flex gap-3 mt-5">
-            <button
-              onClick={() => createShop.mutate(form)}
+            <button onClick={() => createShop.mutate(form)}
               disabled={createShop.isPending || !form.name || !form.password}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-50"
-              style={{ background: "#419873" }}
-            >
+              style={{ background: "#419873" }}>
               {createShop.isPending ? "Creating…" : "Create Shop"}
             </button>
-            <button
-              onClick={() => { setShowForm(false); }}
-              className="px-5 py-2 rounded-xl text-gray-600 text-sm font-medium border border-gray-200"
-            >
-              Cancel
-            </button>
+            <button onClick={() => setShowForm(false)}
+              className="px-5 py-2 rounded-xl text-gray-600 text-sm font-medium border border-gray-200">Cancel</button>
           </div>
           {(createShop.data as any)?.error && (
             <p className="text-sm text-red-500 mt-2">{(createShop.data as any).error}</p>
@@ -189,50 +179,21 @@ export default function ShopsPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-800 mb-5">Edit Shop</h3>
           <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label="Shop Name"
-              value={editing.name}
-              onChange={v => setEditing({ ...editing, name: v })}
-            />
-            <FormField
-              label="Owner's Name"
-              value={editing.ownerName ?? ""}
-              onChange={v => setEditing({ ...editing, ownerName: v })}
-              placeholder="e.g. Kamal Perera"
-            />
-            <FormField
-              label="Shop Address"
-              value={editing.address ?? ""}
-              onChange={v => setEditing({ ...editing, address: v })}
-              placeholder="e.g. 42 Main Street, Colombo"
-            />
-            <FormField
-              label="Contact Number"
-              value={editing.contactNumber ?? ""}
-              onChange={v => setEditing({ ...editing, contactNumber: v })}
-              placeholder="e.g. 0771234567"
-            />
-            <FormField
-              label="Shop ID"
-              value={editing.shopCode}
-              readOnly
-            />
+            <FormField label="Shop Name" value={editing.name} onChange={v => setEditing({ ...editing, name: v })} />
+            <FormField label="Owner's Name" value={editing.ownerName ?? ""} onChange={v => setEditing({ ...editing, ownerName: v })} placeholder="e.g. Kamal Perera" />
+            <FormField label="Shop Address" value={editing.address ?? ""} onChange={v => setEditing({ ...editing, address: v })} placeholder="e.g. 42 Main Street, Colombo" />
+            <FormField label="Contact Number" value={editing.contactNumber ?? ""} onChange={v => setEditing({ ...editing, contactNumber: v })} placeholder="e.g. 0771234567" />
+            <FormField label="Shop ID" value={editing.shopCode} readOnly />
           </div>
           <div className="flex gap-3 mt-5">
-            <button
-              onClick={() => updateShop.mutate(editing)}
+            <button onClick={() => updateShop.mutate(editing)}
               disabled={updateShop.isPending}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-50"
-              style={{ background: "#419873" }}
-            >
+              style={{ background: "#419873" }}>
               {updateShop.isPending ? "Saving…" : "Save Changes"}
             </button>
-            <button
-              onClick={() => setEditing(null)}
-              className="px-5 py-2 rounded-xl text-gray-600 text-sm font-medium border border-gray-200"
-            >
-              Cancel
-            </button>
+            <button onClick={() => setEditing(null)}
+              className="px-5 py-2 rounded-xl text-gray-600 text-sm font-medium border border-gray-200">Cancel</button>
           </div>
         </div>
       )}
@@ -246,7 +207,7 @@ export default function ShopsPage() {
               <th className="px-6 py-3 text-left">Shop Name</th>
               <th className="px-6 py-3 text-left">Owner</th>
               <th className="px-6 py-3 text-left">Contact</th>
-              <th className="px-6 py-3 text-left">Address</th>
+              <th className="px-6 py-3 text-left">Status</th>
               <th className="px-6 py-3 text-left">Created</th>
               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
@@ -254,35 +215,41 @@ export default function ShopsPage() {
           <tbody className="divide-y divide-gray-50">
             {shops.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                  No shops yet
-                </td>
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">No shops yet</td>
               </tr>
             ) : shops.map((s: any) => (
-              <tr key={s.id} className="hover:bg-gray-50">
+              <tr key={s.id} className={`hover:bg-gray-50 ${s.suspended ? "opacity-60" : ""}`}>
                 <td className="px-6 py-4">
                   <span className="bg-gray-100 px-3 py-1 rounded-lg text-sm font-mono font-medium">{s.shopCode}</span>
                 </td>
                 <td className="px-6 py-4 font-medium text-gray-800">{s.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-600">{s.ownerName ?? "—"}</td>
                 <td className="px-6 py-4 text-sm text-gray-600">{s.contactNumber ?? "—"}</td>
-                <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">{s.address ?? "—"}</td>
+                <td className="px-6 py-4">
+                  {s.suspended
+                    ? <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Suspended</span>
+                    : <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Active</span>
+                  }
+                </td>
                 <td className="px-6 py-4 text-sm text-gray-500">
                   {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "—"}
                 </td>
                 <td className="px-6 py-4 text-right space-x-3">
+                  <button onClick={() => setEditing(s)}
+                    className="text-sm text-[#419873] font-medium hover:underline">Edit</button>
                   <button
-                    onClick={() => setEditing(s)}
-                    className="text-sm text-[#419873] font-medium hover:underline"
-                  >
-                    Edit
+                    onClick={() => {
+                      const action = s.suspended ? "unsuspend" : "suspend";
+                      if (confirm(`${s.suspended ? "Unsuspend" : "Suspend"} "${s.name}"?`)) {
+                        suspendShop.mutate({ id: s.id, suspended: !s.suspended });
+                      }
+                    }}
+                    className={`text-sm font-medium hover:underline ${s.suspended ? "text-green-600" : "text-amber-500"}`}>
+                    {s.suspended ? "Unsuspend" : "Suspend"}
                   </button>
                   <button
-                    onClick={() => { if (confirm(`Delete "${s.name}"?`)) deleteShop.mutate(s.id); }}
-                    className="text-sm text-red-500 font-medium hover:underline"
-                  >
-                    Delete
-                  </button>
+                    onClick={() => { if (confirm(`Delete "${s.name}"? This cannot be undone.`)) deleteShop.mutate(s.id); }}
+                    className="text-sm text-red-500 font-medium hover:underline">Delete</button>
                 </td>
               </tr>
             ))}

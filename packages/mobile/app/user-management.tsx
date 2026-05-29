@@ -4,7 +4,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, User, Trash, ShieldCheck, ShoppingCart } from "phosphor-react-native";
+import { ArrowLeft, Plus, User, Trash, ShieldCheck, ShoppingCart, PencilSimple, Prohibit, CheckCircle } from "phosphor-react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../lib/api";
@@ -13,15 +13,16 @@ import { getStoredUser } from "../lib/auth";
 
 const TEAL = "#419873";
 const PURPLE = "#7B5EA7";
+const ORANGE = "#E08A2A";
 
-type StaffUser = { id: string; name: string; username: string; role: string };
+type StaffUser = { id: string; name: string; username: string; role: string; suspended?: boolean };
 
 export default function UserManagement() {
   const router = useRouter();
   const user = getStoredUser();
   const shopId = user?.shopId ?? "";
 
-  // Role guard — cashiers cannot access this screen
+  // Role guard
   if ((user as any)?.role !== "admin") {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#F4F7F5" }} edges={["top"]}>
@@ -39,13 +40,24 @@ export default function UserManagement() {
       </SafeAreaView>
     );
   }
+
   const qc = useQueryClient();
+
+  // Add modal state
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"staff" | "admin">("staff");
   const [saving, setSaving] = useState(false);
+
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTarget, setEditTarget] = useState<StaffUser | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editRole, setEditRole] = useState<"staff" | "admin">("staff");
+  const [editSaving, setEditSaving] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<StaffUser[]>({
     queryKey: ["shop-staff", shopId],
@@ -60,6 +72,14 @@ export default function UserManagement() {
 
   function resetForm() {
     setName(""); setUsername(""); setPassword(""); setRole("staff");
+  }
+
+  function openEdit(u: StaffUser) {
+    setEditTarget(u);
+    setEditName(u.name);
+    setEditPassword("");
+    setEditRole(u.role === "admin" ? "admin" : "staff");
+    setShowEdit(true);
   }
 
   async function handleAdd() {
@@ -80,6 +100,54 @@ export default function UserManagement() {
       }
     }
     setSaving(false);
+  }
+
+  async function handleEdit() {
+    if (!editTarget || !editName.trim()) {
+      Alert.alert("Error", "Name required."); return;
+    }
+    setEditSaving(true);
+    try {
+      const body: any = { name: editName.trim(), role: editRole };
+      if (editPassword.trim()) body.password = editPassword.trim();
+      await authFetch(`/api/staff/${editTarget.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      qc.invalidateQueries({ queryKey: ["shop-staff", shopId] });
+      setShowEdit(false); setEditTarget(null);
+    } catch (e: any) {
+      if (e?.message !== "Session expired") {
+        Alert.alert("Error", e?.message || "Failed to update user.");
+      }
+    }
+    setEditSaving(false);
+  }
+
+  async function handleSuspend(u: StaffUser) {
+    const action = u.suspended ? "unsuspend" : "suspend";
+    Alert.alert(
+      u.suspended ? "Unsuspend User" : "Suspend User",
+      `${u.suspended ? "Re-enable" : "Suspend"} "${u.name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: u.suspended ? "Unsuspend" : "Suspend",
+          style: u.suspended ? "default" : "destructive",
+          onPress: async () => {
+            try {
+              await authFetch(`/api/staff/${u.id}/suspend`, {
+                method: "PATCH",
+                body: JSON.stringify({ suspended: !u.suspended }),
+              });
+              qc.invalidateQueries({ queryKey: ["shop-staff", shopId] });
+            } catch {
+              Alert.alert("Error", "Failed to update user.");
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function handleDelete(u: StaffUser) {
@@ -135,7 +203,7 @@ export default function UserManagement() {
             </View>
           }
           renderItem={({ item }) => (
-            <View style={s.userCard}>
+            <View style={[s.userCard, item.suspended && s.userCardSuspended]}>
               <View style={[s.avatar, isAdmin(item.role) && s.avatarAdmin]}>
                 <Text style={[s.avatarText, isAdmin(item.role) && { color: PURPLE }]}>
                   {item.name.charAt(0).toUpperCase()}
@@ -144,19 +212,38 @@ export default function UserManagement() {
               <View style={s.userInfo}>
                 <Text style={s.userName}>{item.name}</Text>
                 <Text style={s.userUsername}>@{item.username}</Text>
-                <View style={[s.roleBadge, isAdmin(item.role) && s.roleBadgeAdmin]}>
-                  {isAdmin(item.role)
-                    ? <ShieldCheck size={11} color={PURPLE} weight="fill" />
-                    : <ShoppingCart size={11} color={TEAL} weight="fill" />
-                  }
-                  <Text style={[s.roleBadgeText, isAdmin(item.role) && { color: PURPLE }]}>
-                    {isAdmin(item.role) ? "Admin" : "Cashier"}
-                  </Text>
+                <View style={s.badgeRow}>
+                  <View style={[s.roleBadge, isAdmin(item.role) && s.roleBadgeAdmin]}>
+                    {isAdmin(item.role)
+                      ? <ShieldCheck size={11} color={PURPLE} weight="fill" />
+                      : <ShoppingCart size={11} color={TEAL} weight="fill" />
+                    }
+                    <Text style={[s.roleBadgeText, isAdmin(item.role) && { color: PURPLE }]}>
+                      {isAdmin(item.role) ? "Admin" : "Cashier"}
+                    </Text>
+                  </View>
+                  {item.suspended && (
+                    <View style={s.suspendedBadge}>
+                      <Text style={s.suspendedBadgeText}>Suspended</Text>
+                    </View>
+                  )}
                 </View>
               </View>
-              <TouchableOpacity style={s.deleteBtn} onPress={() => handleDelete(item)}>
-                <Trash size={17} color="#E03A2A" weight="bold" />
-              </TouchableOpacity>
+              {/* Action buttons */}
+              <View style={s.actionBtns}>
+                <TouchableOpacity style={s.actionBtn} onPress={() => openEdit(item)}>
+                  <PencilSimple size={16} color={TEAL} weight="bold" />
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: item.suspended ? "#E8F5EE" : "#FFF4E5" }]} onPress={() => handleSuspend(item)}>
+                  {item.suspended
+                    ? <CheckCircle size={16} color="#419873" weight="bold" />
+                    : <Prohibit size={16} color={ORANGE} weight="bold" />
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.actionBtn, { backgroundColor: "#FEF0EE" }]} onPress={() => handleDelete(item)}>
+                  <Trash size={16} color="#E03A2A" weight="bold" />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         />
@@ -171,37 +258,21 @@ export default function UserManagement() {
               <Text style={s.modalTitle}>Add User</Text>
 
               <Text style={s.fieldLabel}>Full Name</Text>
-              <TextInput
-                style={s.input} placeholder="e.g. John Perera" value={name}
-                onChangeText={setName} placeholderTextColor="#B0BDB6"
-              />
+              <TextInput style={s.input} placeholder="e.g. John Perera" value={name} onChangeText={setName} placeholderTextColor="#B0BDB6" />
 
               <Text style={s.fieldLabel}>Username</Text>
-              <TextInput
-                style={s.input} placeholder="e.g. john_p" value={username}
-                onChangeText={setUsername} autoCapitalize="none"
-                placeholderTextColor="#B0BDB6"
-              />
+              <TextInput style={s.input} placeholder="e.g. john_p" value={username} onChangeText={setUsername} autoCapitalize="none" placeholderTextColor="#B0BDB6" />
 
               <Text style={s.fieldLabel}>Password</Text>
-              <TextInput
-                style={s.input} placeholder="••••••••" value={password}
-                onChangeText={setPassword} secureTextEntry placeholderTextColor="#B0BDB6"
-              />
+              <TextInput style={s.input} placeholder="••••••••" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor="#B0BDB6" />
 
               <Text style={s.fieldLabel}>Role</Text>
               <View style={s.roleRow}>
-                <TouchableOpacity
-                  style={[s.roleBtn, role === "staff" && s.roleBtnActive]}
-                  onPress={() => setRole("staff")}
-                >
+                <TouchableOpacity style={[s.roleBtn, role === "staff" && s.roleBtnActive]} onPress={() => setRole("staff")}>
                   <ShoppingCart size={16} color={role === "staff" ? "#fff" : TEAL} weight="fill" />
                   <Text style={[s.roleBtnText, role === "staff" && s.roleBtnTextActive]}>Cashier</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.roleBtn, s.roleBtnAdmin, role === "admin" && s.roleBtnAdminActive]}
-                  onPress={() => setRole("admin")}
-                >
+                <TouchableOpacity style={[s.roleBtn, s.roleBtnAdmin, role === "admin" && s.roleBtnAdminActive]} onPress={() => setRole("admin")}>
                   <ShieldCheck size={16} color={role === "admin" ? "#fff" : PURPLE} weight="fill" />
                   <Text style={[s.roleBtnText, { color: role === "admin" ? "#fff" : PURPLE }, role === "admin" && s.roleBtnTextActive]}>Admin</Text>
                 </TouchableOpacity>
@@ -219,8 +290,46 @@ export default function UserManagement() {
                   <Text style={s.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={handleAdd} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={s.saveBtnText}>Add User</Text>}
+                  {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Add User</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Edit user modal */}
+      <Modal visible={showEdit} transparent animationType="slide" onRequestClose={() => { setShowEdit(false); setEditTarget(null); }}>
+        <View style={s.modalOverlay}>
+          <ScrollView contentContainerStyle={s.modalScroll} keyboardShouldPersistTaps="handled">
+            <View style={s.modalSheet}>
+              <View style={s.handle} />
+              <Text style={s.modalTitle}>Edit User</Text>
+
+              <Text style={s.fieldLabel}>Full Name</Text>
+              <TextInput style={s.input} placeholder="Full name" value={editName} onChangeText={setEditName} placeholderTextColor="#B0BDB6" />
+
+              <Text style={s.fieldLabel}>New Password <Text style={{ color: "#B0BDB6", fontWeight: "400" }}>(leave blank to keep)</Text></Text>
+              <TextInput style={s.input} placeholder="••••••••" value={editPassword} onChangeText={setEditPassword} secureTextEntry placeholderTextColor="#B0BDB6" />
+
+              <Text style={s.fieldLabel}>Role</Text>
+              <View style={s.roleRow}>
+                <TouchableOpacity style={[s.roleBtn, editRole === "staff" && s.roleBtnActive]} onPress={() => setEditRole("staff")}>
+                  <ShoppingCart size={16} color={editRole === "staff" ? "#fff" : TEAL} weight="fill" />
+                  <Text style={[s.roleBtnText, editRole === "staff" && s.roleBtnTextActive]}>Cashier</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.roleBtn, s.roleBtnAdmin, editRole === "admin" && s.roleBtnAdminActive]} onPress={() => setEditRole("admin")}>
+                  <ShieldCheck size={16} color={editRole === "admin" ? "#fff" : PURPLE} weight="fill" />
+                  <Text style={[s.roleBtnText, { color: editRole === "admin" ? "#fff" : PURPLE }, editRole === "admin" && s.roleBtnTextActive]}>Admin</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={s.modalActions}>
+                <TouchableOpacity style={s.cancelBtn} onPress={() => { setShowEdit(false); setEditTarget(null); }}>
+                  <Text style={s.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.saveBtn, editSaving && { opacity: 0.6 }]} onPress={handleEdit} disabled={editSaving}>
+                  {editSaving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>Save Changes</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -247,10 +356,11 @@ const s = StyleSheet.create({
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   list: { padding: 16, gap: 12 },
   userCard: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 16,
-    flexDirection: "row", alignItems: "center", gap: 14,
+    backgroundColor: "#fff", borderRadius: 14, padding: 14,
+    flexDirection: "row", alignItems: "center", gap: 12,
     shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
+  userCardSuspended: { opacity: 0.65 },
   avatar: {
     width: 46, height: 46, borderRadius: 23,
     backgroundColor: "#E8F5EE", alignItems: "center", justifyContent: "center",
@@ -260,17 +370,24 @@ const s = StyleSheet.create({
   userInfo: { flex: 1 },
   userName: { fontSize: 15, fontWeight: "700", color: "#1a2e22" },
   userUsername: { fontSize: 12, color: "#A0ADB8", marginTop: 2 },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
   roleBadge: {
-    marginTop: 6, alignSelf: "flex-start",
+    alignSelf: "flex-start",
     backgroundColor: "#E8F5EE", borderRadius: 6,
     paddingHorizontal: 8, paddingVertical: 3,
     flexDirection: "row", alignItems: "center", gap: 4,
   },
   roleBadgeAdmin: { backgroundColor: "#F0EBF8" },
   roleBadgeText: { color: TEAL, fontSize: 11, fontWeight: "700" },
-  deleteBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "#FEF0EE", alignItems: "center", justifyContent: "center",
+  suspendedBadge: {
+    backgroundColor: "#FEF0EE", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  suspendedBadgeText: { color: "#E03A2A", fontSize: 11, fontWeight: "700" },
+  actionBtns: { flexDirection: "row", gap: 6 },
+  actionBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: "#E8F5EE",
+    alignItems: "center", justifyContent: "center",
   },
   emptyBox: { alignItems: "center", paddingTop: 80, gap: 8 },
   emptyText: { fontSize: 16, fontWeight: "700", color: "#C0CCC8" },

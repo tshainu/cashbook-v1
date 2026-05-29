@@ -4,8 +4,6 @@ import { authClient, clearToken } from "../lib/auth";
 const navItems = [
   { href: "/", label: "Dashboard", icon: "📊" },
   { href: "/shops", label: "Shops", icon: "🏪" },
-  { href: "/staff", label: "Staff", icon: "👥" },
-  { href: "/items", label: "Items", icon: "📦" },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

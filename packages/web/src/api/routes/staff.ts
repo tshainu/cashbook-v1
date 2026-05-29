@@ -17,6 +17,7 @@ export function staff(db: LibSQLDatabase<typeof schema>, auth: AuthInstance) {
         email: schema.users.email,
         role: schema.users.role,
         shopId: schema.users.shopId,
+        suspended: schema.users.suspended,
         createdAt: schema.users.createdAt,
       }).from(schema.users);
       const all = shopId
@@ -31,7 +32,6 @@ export function staff(db: LibSQLDatabase<typeof schema>, auth: AuthInstance) {
         return c.json({ message: "name, username, and password are required" }, 400);
       }
 
-      // Check username uniqueness within shop
       const [existing] = await db.select({ id: schema.users.id })
         .from(schema.users)
         .where(and(eq(schema.users.username, username), eq(schema.users.shopId, Number(shopId))));
@@ -40,7 +40,6 @@ export function staff(db: LibSQLDatabase<typeof schema>, auth: AuthInstance) {
       const userId = crypto.randomUUID();
       const accountId = crypto.randomUUID();
       const now = new Date();
-      // Use a synthetic email so Better Auth's auth still works if needed
       const syntheticEmail = `${username}@shop-${shopId}.internal`;
       const hashed = await hashPassword(password);
 
@@ -52,6 +51,7 @@ export function staff(db: LibSQLDatabase<typeof schema>, auth: AuthInstance) {
         emailVerified: false,
         shopId: Number(shopId),
         role: role ?? "staff",
+        suspended: false,
         createdAt: now,
         updatedAt: now,
       });
@@ -70,6 +70,32 @@ export function staff(db: LibSQLDatabase<typeof schema>, auth: AuthInstance) {
         user: { id: userId, name, username, role: role ?? "staff", shopId: Number(shopId) },
       }, 201);
     })
+    // Edit user (name, role, optional password)
+    .patch("/:id", requireAuth, async (c) => {
+      const id = c.req.param("id");
+      const body = await c.req.json();
+      if (body.password) {
+        const hashed = await hashPassword(body.password);
+        await db.update(schema.accounts).set({ password: hashed })
+          .where(and(eq(schema.accounts.userId, id), eq(schema.accounts.providerId, "credential")));
+      }
+      const updates: any = { updatedAt: new Date() };
+      if (body.name) updates.name = body.name;
+      if (body.role) updates.role = body.role;
+      const [user] = await db.update(schema.users).set(updates)
+        .where(eq(schema.users.id, id)).returning();
+      return c.json({ user }, 200);
+    })
+    // Suspend/unsuspend user
+    .patch("/:id/suspend", requireAuth, async (c) => {
+      const id = c.req.param("id");
+      const body = await c.req.json();
+      const [user] = await db.update(schema.users)
+        .set({ suspended: body.suspended, updatedAt: new Date() })
+        .where(eq(schema.users.id, id))
+        .returning();
+      return c.json({ user }, 200);
+    })
     .put("/:id", requireAuth, async (c) => {
       const id = c.req.param("id");
       const body = await c.req.json();
@@ -81,7 +107,6 @@ export function staff(db: LibSQLDatabase<typeof schema>, auth: AuthInstance) {
         updatedAt: new Date(),
       };
       if (body.password) {
-        // Update password in accounts table
         const hashed = await hashPassword(body.password);
         await db.update(schema.accounts).set({ password: hashed })
           .where(and(eq(schema.accounts.userId, id), eq(schema.accounts.providerId, "credential")));

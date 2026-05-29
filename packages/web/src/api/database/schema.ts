@@ -8,6 +8,7 @@ export const shops = sqliteTable("shops", {
   address: text("address"),
   contactNumber: text("contact_number"),
   ownerName: text("owner_name"),
+  suspended: integer("suspended", { mode: "boolean" }).$defaultFn(() => false),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
@@ -21,6 +22,7 @@ export const users = sqliteTable("users", {
   emailVerified: integer("email_verified", { mode: "boolean" }).$defaultFn(() => false),
   image: text("image"),
   role: text("role").notNull().default("staff"), // 'admin' | 'staff'
+  suspended: integer("suspended", { mode: "boolean" }).$defaultFn(() => false),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
