@@ -183,9 +183,10 @@ export default function ShopsPage() {
             <FormField label="Owner's Name" value={editing.ownerName ?? ""} onChange={v => setEditing({ ...editing, ownerName: v })} placeholder="e.g. Kamal Perera" />
             <FormField label="Shop Address" value={editing.address ?? ""} onChange={v => setEditing({ ...editing, address: v })} placeholder="e.g. 42 Main Street, Colombo" />
             <FormField label="Contact Number" value={editing.contactNumber ?? ""} onChange={v => setEditing({ ...editing, contactNumber: v })} placeholder="e.g. 0771234567" />
-            <FormField label="Shop ID" value={editing.shopCode} readOnly />
-          </div>
-          <div className="flex gap-3 mt-5">
+	            <FormField label="Shop ID" value={editing.shopCode} readOnly />
+	            <FormField label="Reset Admin Password" value={editing.password ?? ""} onChange={v => setEditing({ ...editing, password: v })} placeholder="Leave blank to keep current" type="password" />
+	          </div>
+	          <div className="flex gap-3 mt-5">
             <button onClick={() => updateShop.mutate(editing)}
               disabled={updateShop.isPending}
               className="px-5 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-50"
@@ -248,7 +249,7 @@ export default function ShopsPage() {
                     {s.suspended ? "Unsuspend" : "Suspend"}
                   </button>
                   <button
-                    onClick={() => { if (confirm(`Delete "${s.name}"? This cannot be undone.`)) deleteShop.mutate(s.id); }}
+                    onClick={() => { if (confirm(`Delete "${s.name}"? This cannot be undone.`)) deleteShop.mutate(s.shopCode); }}
                     className="text-sm text-red-500 font-medium hover:underline">Delete</button>
                 </td>
               </tr>

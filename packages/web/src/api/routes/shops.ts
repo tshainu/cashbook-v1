@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "../database/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { hashPassword } from "../database/password";
 
 export function shops(db: LibSQLDatabase<typeof schema>) {
@@ -66,6 +66,8 @@ export function shops(db: LibSQLDatabase<typeof schema>) {
     .put("/:id", async (c) => {
       const id = parseInt(c.req.param("id"));
       const body = await c.req.json();
+      
+      // Update shop details
       const [shop] = await db.update(schema.shops)
         .set({
           name: body.name,
@@ -76,6 +78,23 @@ export function shops(db: LibSQLDatabase<typeof schema>) {
         })
         .where(eq(schema.shops.id, id))
         .returning();
+
+      // Update password if provided
+      if (body.password) {
+        // Find the admin user for this shop
+        const [adminUser] = await db.select()
+          .from(schema.users)
+          .where(and(eq(schema.users.shopId, id), eq(schema.users.role, "admin")));
+        
+        if (adminUser) {
+          const hashed = await hashPassword(body.password);
+          await db.update(schema.accounts)
+            .set({ password: hashed, updatedAt: new Date() })
+            .where(and(eq(schema.accounts.userId, adminUser.id), eq(schema.accounts.providerId, "credential")));
+          console.log(`[UPDATE] Password updated for shop admin: ${adminUser.email}`);
+        }
+      }
+
       return c.json({ shop }, 200);
     })
     .patch("/:id/suspend", async (c) => {
@@ -88,8 +107,37 @@ export function shops(db: LibSQLDatabase<typeof schema>) {
       return c.json({ shop }, 200);
     })
     .delete("/:id", async (c) => {
-      const id = parseInt(c.req.param("id"));
-      await db.delete(schema.shops).where(eq(schema.shops.id, id));
-      return c.json({ success: true }, 200);
+      const paramId = c.req.param("id");
+      console.log(`[DELETE] Received request to delete shop with param: ${paramId}`);
+      let id: number;
+
+      if (isNaN(Number(paramId))) {
+        const [shop] = await db.select().from(schema.shops).where(eq(schema.shops.shopCode, paramId));
+        if (!shop) {
+          console.log(`[DELETE] Shop with code ${paramId} not found.`);
+          return c.json({ message: "Shop not found" }, 404);
+        }
+        id = shop.id;
+        console.log(`[DELETE] Resolved shopCode ${paramId} to ID: ${id}`);
+      } else {
+        id = parseInt(paramId);
+        console.log(`[DELETE] Using numeric ID: ${id}`);
+      }
+
+      try {
+        console.log(`[DELETE] Starting cleanup for shop ID: ${id}`);
+        await db.delete(schema.transactions).where(eq(schema.transactions.shopId, id));
+        console.log(`[DELETE] Transactions deleted.`);
+        await db.delete(schema.items).where(eq(schema.items.shopId, id));
+        console.log(`[DELETE] Items deleted.`);
+        await db.delete(schema.users).where(eq(schema.users.shopId, id));
+        console.log(`[DELETE] Users deleted.`);
+        await db.delete(schema.shops).where(eq(schema.shops.id, id));
+        console.log(`[DELETE] Shop deleted successfully.`);
+        return c.json({ success: true }, 200);
+      } catch (error: any) {
+        console.error("[DELETE] Fatal error:", error);
+        return c.json({ message: "Failed to delete shop", error: error.message }, 500);
+      }
     });
 }
