@@ -4,6 +4,7 @@ import { authClient, clearToken } from "../lib/auth";
 const navItems = [
   { href: "/", label: "Dashboard", icon: "📊" },
   { href: "/shops", label: "Shops", icon: "🏪" },
+  { href: "/staff", label: "Staff", icon: "👥" },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -64,10 +65,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <p className="text-xs text-gray-400 truncate">{session?.user?.email}</p>
             </div>
           </div>
-          <button onClick={handleSignOut}
-            className="w-full text-sm text-gray-500 hover:text-red-500 text-left transition-colors px-1">
-            Sign out →
-          </button>
+          <div className="space-y-2">
+            <Link href="/settings">
+              <a className="w-full text-sm text-gray-500 hover:text-blue-600 text-left transition-colors px-1 block">
+                ⚙️ Settings
+              </a>
+            </Link>
+            <button onClick={handleSignOut}
+              className="w-full text-sm text-gray-500 hover:text-red-500 text-left transition-colors px-1">
+              Sign out →
+            </button>
+          </div>
         </div>
       </aside>
 

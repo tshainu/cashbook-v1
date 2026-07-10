@@ -5,6 +5,7 @@ import DashboardPage from "./pages/dashboard";
 import ShopsPage from "./pages/shops";
 import StaffPage from "./pages/staff";
 import ItemsPage from "./pages/items";
+import SettingsPage from "./pages/settings";
 import Layout from "./components/layout";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,13 @@ export default function App() {
         <ProtectedRoute>
           <Layout>
             <ItemsPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute>
+          <Layout>
+            <SettingsPage />
           </Layout>
         </ProtectedRoute>
       </Route>

@@ -5,6 +5,8 @@ import { api } from "../lib/api";
 export default function StaffPage() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editingPassword, setEditingPassword] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [form, setForm] = useState({ name: "", username: "", email: "", password: "", role: "staff", shopId: "" });
 
   const { data: shopsData } = useQuery({
@@ -25,6 +27,16 @@ export default function StaffPage() {
   const deleteStaff = useMutation({
     mutationFn: async (id: string) => (await (api.staff as any)[":id"].$delete({ param: { id } })).json(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
+  });
+
+  const updatePassword = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => 
+      (await (api.staff as any)[":id"].$patch({ param: { id }, json: { password } })).json(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff"] });
+      setEditingPassword(null);
+      setNewPassword("");
+    },
   });
 
   const shops = shopsData?.shops ?? [];
@@ -118,7 +130,9 @@ export default function StaffPage() {
                 <td className="px-6 py-4 text-sm text-gray-600">
                   {shops.find((sh: any) => sh.id === s.shopId)?.name ?? "—"}
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-6 py-4 text-right space-x-3">
+                  <button onClick={() => setEditingPassword(s)}
+                    className="text-sm text-blue-500 font-medium hover:underline">Change Password</button>
                   <button onClick={() => { if (confirm("Delete this staff?")) deleteStaff.mutate(s.id); }}
                     className="text-sm text-red-500 font-medium hover:underline">Delete</button>
                 </td>
@@ -126,7 +140,43 @@ export default function StaffPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      )}
+
+      {/* Password Edit Modal */}
+      {editingPassword && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full p-6">
+            <h3 className="font-semibold text-gray-800 mb-4">Change Password for {editingPassword.name}</h3>
+            <div className="mb-4">
+              <label className="text-sm text-gray-600 mb-2 block">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => updatePassword.mutate({ id: editingPassword.id, password: newPassword })}
+                disabled={updatePassword.isPending || !newPassword}
+                className="flex-1 px-4 py-2 rounded-xl text-white text-sm font-medium disabled:opacity-50"
+                style={{ background: "#419873" }}
+              >
+                {updatePassword.isPending ? "Updating..." : "Update Password"}
+              </button>
+              <button
+                onClick={() => { setEditingPassword(null); setNewPassword(""); }}
+                className="flex-1 px-4 py-2 rounded-xl text-gray-600 text-sm font-medium border border-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+            {updatePassword.isError && <p className="text-red-500 text-sm mt-2">Failed to update password</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
