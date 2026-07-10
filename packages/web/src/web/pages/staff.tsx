@@ -140,7 +140,7 @@ export default function StaffPage() {
             ))}
           </tbody>
         </table>
-      )}
+      </div>
 
       {/* Password Edit Modal */}
       {editingPassword && (
